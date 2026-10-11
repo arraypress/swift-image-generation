@@ -26,7 +26,6 @@ public extension GenerationModel {
     /// Whether the model can edit an existing picture (image-to-image).
     var supportsEditing: Bool { self == .flux2Klein4B }
 
-    /// The side of the square images the exports produce, in pixels. Both
-    /// were exported at 1024 × 1024 only; other sizes need another export.
-    var imageSize: Int { 1024 }
+    /// The shapes this library's exports come in, for both models.
+    var aspects: [ImageAspect] { ImageAspect.allCases }
 }

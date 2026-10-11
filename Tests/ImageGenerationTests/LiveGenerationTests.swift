@@ -35,6 +35,19 @@ struct LiveGenerationTests {
         await #expect(throws: ImageGenerationError.self) { try await generator.edit(source, "make it night") }
     }
 
+    @Test("SANA 16:9: 1344 x 768, deterministic, and it refuses to edit", .enabled(if: sanaFolder != nil))
+    func sanaWide() async throws {
+        let folder = URL(fileURLWithPath: try #require(sanaFolder)).appendingPathComponent("aspect-16x9")
+        try #require(FileManager.default.fileExists(atPath: folder.path), "no 16:9 export beside \(folder.path)")
+        let generator = try await ImageGenerator(bundle: folder)
+        #expect(generator.size == (1344, 768))
+        let one = try await generator.generate("a lighthouse on a rocky coast at sunset", seed: 11)
+        let two = try await generator.generate("a lighthouse on a rocky coast at sunset", seed: 11)
+        #expect(one[0].image.width == 1344 && one[0].image.height == 768)
+        #expect(Fixture.pixels(one[0].image) == Fixture.pixels(two[0].image))
+        #expect(!generator.supportsEditing)
+    }
+
     @Test("FLUX: same seed, same bytes; it edits", .enabled(if: fluxFolder != nil))
     func flux() async throws {
         let generator = try await ImageGenerator(bundle: URL(fileURLWithPath: try #require(fluxFolder)), lowMemory: true)

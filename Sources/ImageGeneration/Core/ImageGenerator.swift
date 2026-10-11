@@ -34,6 +34,9 @@ public final class ImageGenerator: Sendable {
     /// The export folder.
     public let bundle: URL
 
+    /// The pictures' width and height, from the export.
+    public let size: (width: Int, height: Int)
+
     /// Whether ``edit(_:_:seed:strength:allowText:)`` can run: FLUX.2 Klein
     /// with its editing parts (`Transformer_img2img_full`, `VAEEncoder`)
     /// beside the rest.
@@ -73,7 +76,9 @@ public final class ImageGenerator: Sendable {
         self.model = model
         self.bundle = bundle
         self.pipeline = pipeline
-        self.supportsEditing = model.supportsEditing && pipeline.supportsImageToImage
+        self.size = pipeline.defaultImageSize
+        // Editing works on a square export only: FLUX's reference tokens are traced square.
+        self.supportsEditing = model.supportsEditing && pipeline.supportsImageToImage && !pipeline.isNonSquare
         self.defaults = Defaults(
             steps: config.defaultSteps ?? DiffusionDefaults.Runner.steps,
             guidance: config.defaultGuidanceScale ?? DiffusionDefaults.Runner.guidanceScale,
@@ -93,7 +98,7 @@ public final class ImageGenerator: Sendable {
     ///     no typography" is appended, because both models invent and misspell
     ///     lettering — add real text afterwards instead.
     ///   - progress: Called after each denoising step with (step, steps).
-    /// - Returns: The pictures, in seed order.
+    /// - Returns: The pictures, in seed order, at the export's ``size``.
     /// - Throws: ``ImageGenerationError``; `.cancelled` when the task is.
     public func generate(_ prompt: String, seed: UInt32? = nil, count: Int = 1, allowText: Bool = false,
                          progress: (@Sendable (Int, Int) -> Void)? = nil) async throws(ImageGenerationError) -> [GeneratedImage] {
@@ -132,7 +137,9 @@ public final class ImageGenerator: Sendable {
             throw .editingUnavailable("\(model.displayName) cannot edit pictures; FLUX.2 Klein 4B can")
         }
         guard supportsEditing else {
-            throw .editingUnavailable("This FLUX.2 Klein export has no editing parts (Transformer_img2img_full, VAEEncoder)")
+            throw .editingUnavailable(size.width != size.height
+                ? "Editing works on the square export only; this one is \(size.width)×\(size.height)"
+                : "This FLUX.2 Klein export has no editing parts (Transformer_img2img_full, VAEEncoder)")
         }
         guard strength > 0, strength <= 1 else { throw .invalidPrompt("Strength is more than 0 and at most 1") }
         let text = try PromptText.validated(instruction)

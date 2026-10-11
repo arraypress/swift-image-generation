@@ -73,11 +73,21 @@ struct CropAndBundleTests {
         #expect(throws: ImageGenerationError.notABundle(empty.path)) { try BundleIdentity.model(at: empty) }
     }
 
-    @Test("Only FLUX edits; both make 1024 squares")
+    @Test("Only FLUX edits; both come in 1:1 and 16:9")
     func details() {
         #expect(GenerationModel.flux2Klein4B.supportsEditing)
         #expect(!GenerationModel.sanaSprint16B.supportsEditing)
-        #expect(GenerationModel.allCases.allSatisfy { $0.imageSize == 1024 })
+        #expect(GenerationModel.allCases.allSatisfy { $0.aspects == [.square, .landscape] })
+    }
+
+    @Test("Aspect sizes suit both models: multiples of 32, 16:9 within 2 %")
+    func aspects() {
+        #expect(ImageAspect.square.size == (1024, 1024) && ImageAspect.square.subfolder == nil)
+        let wide = ImageAspect.landscape.size
+        #expect(wide.width % 32 == 0 && wide.height % 32 == 0)
+        #expect(abs(Double(wide.width) / Double(wide.height) - 16.0 / 9.0) / (16.0 / 9.0) < 0.02)
+        #expect(ImageAspect(rawValue: "16:9") == .landscape)
+        #expect(ImageAspect.landscape.subfolder == "aspect-16x9")
     }
 }
 

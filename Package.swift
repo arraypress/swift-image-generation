@@ -12,8 +12,10 @@ let package = Package(
     ],
     dependencies: [
         // Apple's official Core AI recipes and runtime (BSD-3): the FLUX.2 and
-        // SANA Sprint pipelines — schedulers, tokenizers, VAE codecs.
-        .package(url: "https://github.com/apple/coreai-models.git", from: "1.0.0"),
+        // SANA Sprint pipelines — schedulers, tokenizers, VAE codecs. A fork of
+        // 1.0.0 with one change: exports may be non-square (image_width /
+        // image_height in the metadata), which Apple's pipeline assumed away.
+        .package(url: "https://github.com/arraypress/coreai-models.git", exact: "1.0.0-nonsquare.1"),
     ],
     targets: [
         // NonisolatedNonsendingByDefault stays OFF: generation is seconds of
