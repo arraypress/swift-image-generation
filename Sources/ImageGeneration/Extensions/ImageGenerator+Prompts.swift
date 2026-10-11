@@ -20,6 +20,14 @@ public extension ImageGenerator {
         try PromptText.validated(prompt)
     }
 
+    /// The seeds a run of `count` would use: `start` (random when `nil`) and
+    /// the next ones up. Lets a caller name its files before loading a model;
+    /// passing each seed to `generate(_:seed:count:allowText:progress:)` with
+    /// `count: 1` makes the same pictures as one run.
+    static func seeds(start: UInt32?, count: Int) -> [UInt32] {
+        SeedPlan.seeds(start: start, count: count)
+    }
+
     /// The prompt the model would be given.
     static func promptSent(for prompt: String, allowText: Bool) -> String {
         PromptText.composed(prompt, allowText: allowText)

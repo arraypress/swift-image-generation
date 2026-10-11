@@ -42,6 +42,8 @@ struct SeedTests {
         #expect(SeedPlan.seeds(start: UInt32.max, count: 2) == [UInt32.max, 0])
         #expect(SeedPlan.seeds(start: nil, count: 2, random: { 41 }) == [41, 42])
         #expect(SeedPlan.seeds(start: 1, count: 0).isEmpty)
+        #expect(ImageGenerator.seeds(start: 7, count: 3) == [7, 8, 9])
+        #expect(ImageGenerator.seeds(start: nil, count: 2).count == 2)
     }
 }
 
