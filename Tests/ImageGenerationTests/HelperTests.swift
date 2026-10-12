@@ -81,8 +81,8 @@ struct CropAndBundleTests {
         #expect(GenerationModel.flux2Klein4B.supportsEditing)
         #expect(!GenerationModel.sanaSprint16B.supportsEditing)
         #expect(!GenerationModel.flux2Klein9B.supportsEditing)
-        #expect(GenerationModel.flux2Klein4B.aspects == [.square, .landscape])
-        #expect(GenerationModel.sanaSprint16B.aspects == [.square, .landscape])
+        #expect(GenerationModel.flux2Klein4B.aspects == [.square, .landscape, .vertical, .portrait])
+        #expect(GenerationModel.sanaSprint16B.aspects == [.square, .landscape, .vertical, .portrait])
         #expect(GenerationModel.flux2Klein9B.aspects == [.square])
         #expect(GenerationModel.allCases.filter(\.isNonCommercial) == [.flux2Klein9B])
         let gb: UInt64 = 1_073_741_824
@@ -100,6 +100,14 @@ struct CropAndBundleTests {
         #expect(abs(Double(wide.width) / Double(wide.height) - 16.0 / 9.0) / (16.0 / 9.0) < 0.02)
         #expect(ImageAspect(rawValue: "16:9") == .landscape)
         #expect(ImageAspect.landscape.subfolder == "aspect-16x9")
+        #expect(ImageAspect(rawValue: "9:16") == .vertical)
+        #expect(ImageAspect(rawValue: "4:5") == .portrait)
+        #expect(ImageAspect.vertical.size == (768, 1344) && ImageAspect.portrait.size == (896, 1120))
+        #expect(ImageAspect.vertical.subfolder == "aspect-9x16" && ImageAspect.portrait.subfolder == "aspect-4x5")
+        // Every shape is a multiple of 32, which both models need.
+        for aspect in ImageAspect.allCases {
+            #expect(aspect.size.width % 32 == 0 && aspect.size.height % 32 == 0)
+        }
     }
 }
 

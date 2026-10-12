@@ -10,7 +10,7 @@ import CoreGraphics
 /// One picture a model made, and what made it.
 public struct GeneratedImage: Sendable {
 
-    /// The picture, at the export's size (1024 × 1024, or 1344 × 768 for 16:9).
+    /// The picture, at the export's size (1024 × 1024; 1344 × 768 for 16:9, 768 × 1344 for 9:16, 896 × 1120 for 4:5).
     public let image: CGImage
 
     /// The seed that made it. The same model, prompt and seed make the same

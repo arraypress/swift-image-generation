@@ -18,4 +18,11 @@ public enum ImageAspect: String, Sendable, Codable, CaseIterable {
     /// 1344 × 768 — 16:9 within 1.6 %, and a multiple of 32 so both models
     /// take it (FLUX needs 16, SANA's autoencoder 32).
     case landscape = "16:9"
+
+    /// 768 × 1344 — the 16:9 export turned upright, for Shorts, Reels and
+    /// stories.
+    case vertical = "9:16"
+
+    /// 896 × 1120 — exactly 4:5, for feed posts; also a multiple of 32.
+    case portrait = "4:5"
 }

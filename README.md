@@ -24,7 +24,7 @@ prompts — FLUX.2 Klein 4B, SANA Sprint 0.6B and 1.6B, Z-Image Turbo and GLM-Im
 | 16:9 against 1:1, back to back | ~1.1–1.3× | ~1.7× (4.0 s vs 2.4 s) |
 | first picture in a fresh process | 46.6 s | 28.7 s |
 | peak memory | 8.6 GB (4.6 GB with `lowMemory`) | 3.0 GB |
-| disk | 13 GB (+7.3 GB editing, +7.3 GB 16:9) | 8.2 GB (+3.3 GB 16:9) |
+| disk | 13 GB (+7.3 GB editing, +7.3 GB per extra shape) | 8.2 GB (+3.3 GB per extra shape) |
 | licence | Apache-2.0 | Apache-2.0 + MIT + Gemma Terms of Use |
 
 **FLUX.2 [klein] 9B** (0.3, `.flux2Klein9B`) is the opt-in third: on the same prompts a tie with 4B
@@ -43,15 +43,17 @@ and [arraypress/imagine-sana-sprint-1.6b](https://huggingface.co/arraypress/imag
 with their licences and notices. This library takes the export folder; fetching it is the caller's
 job (the `imagine` CLI does it on first use).
 
-- **Two shapes: 1:1 (1024 × 1024) and 16:9 (1344 × 768).** `ImageAspect` names them; a 16:9
-  export is its own folder (`aspect-16x9/`) beside the square one, sharing its text encoder, and
+- **Four shapes: 1:1 (1024 × 1024), 16:9 (1344 × 768), 9:16 (768 × 1344) and 4:5 (896 × 1120).**
+  `ImageAspect` names them; each non-square export is its own folder (`aspect-16x9/`, `aspect-9x16/`,
+  `aspect-4x5/`) beside the square one, sharing its text encoder, and
   `ImageGenerator(bundle:)` loads either — `size` says which. Measured before choosing that layout: a
   transformer holding both shapes as two functions shares one 7.2 GB weight copy on disk, but Core AI
   compiles every function at first load and keeps a full compiled copy of each (14 GB), so everyone
   would pay for every shape; a folder per shape costs only whoever uses it — FLUX 7.3 GB, SANA 3.3 GB
-  of download and about as much compiled cache. 9:16 and 4:5 would cost the same each and are not
-  exported yet. Editing is 1:1 only.
-- **A fork of Apple's pipeline, for 16:9.** Apple's `FlowTransformerPipeline` assumes a square image
+  of download and about as much compiled cache, per shape. 9:16 and 4:5 (0.5.0) were exported with
+  `COREAI_IMAGE_HW` from the fork's `1.0.0-nonsquare.3`; same seed, byte-identical output, measured.
+  Editing is 1:1 only.
+- **A fork of Apple's pipeline, for the non-square shapes.** Apple's `FlowTransformerPipeline` assumes a square image
   (one `spatialSide` for the token grid and the decode). This depends on
   [arraypress/coreai-models](https://github.com/arraypress/coreai-models) `1.0.0-nonsquare.2`: Apple's
   1.0.0 plus a 45-line change reading `image_width`/`image_height` from an export's metadata, and
