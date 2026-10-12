@@ -96,6 +96,22 @@ struct StyleTests {
             == "a fox running, crisp edges, in a field, soft, ink drawing")
     }
 
+    @Test("A role scene leads with the subject: the role reads before the clothes")
+    func roleFirst() {
+        let scene = StyleScene(setting: "as a wizard with an oversized hat", wear: Wardrobe(neutral: "a starry robe"))
+        #expect(ImageRecipe(prompt: scene.prompt(subject: "a fox", wear: .neutral)).composedPrompt
+            == "a fox as a wizard with an oversized hat, wearing a starry robe")
+        #expect(StyleCatalog.isRole("As a knight"))
+        #expect(!StyleCatalog.isRole("ascending a staircase"))
+        // No built-in scene puts a role after the clothes any more.
+        for style in ImageStyle.all {
+            for index in style.scenes.indices {
+                let text = ImageRecipe(prompt: style.prompt(scene: index, subject: "a person", wear: .neutral)).composedPrompt
+                #expect(!text.contains(", as a ") && !text.contains(", as an "), "\(style.name) \(index + 1): \(text)")
+            }
+        }
+    }
+
     @Test("A malformed entry is reported, never silently dropped")
     func problemsAreReported() {
         let bad = """

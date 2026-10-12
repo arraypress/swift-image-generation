@@ -174,8 +174,19 @@ enum StyleCatalog {
         var details: [String] = []
         if let wear = scene.wear, let worn = clothes(wear, choice) { details.append("wearing \(worn)") }
         details += scene.details
-        return ImageRecipe.Prompt(subject: who, details: details.isEmpty ? nil : details, setting: scene.setting,
+        // A scene that casts the subject — "as a wizard with an oversized hat",
+        // "as a marble sculpture" — is a role, not a place: it joins the
+        // subject, so the prompt reads "a person as a wizard, wearing a starry
+        // robe" rather than putting the role after the clothes.
+        let role = isRole(scene.setting)
+        return ImageRecipe.Prompt(subject: role ? "\(who) \(scene.setting)" : who,
+                                  details: details.isEmpty ? nil : details, setting: role ? nil : scene.setting,
                                   lighting: scene.lighting, camera: scene.camera, style: scene.look)
+    }
+
+    /// Whether a scene's setting casts the subject as something.
+    static func isRole(_ setting: String) -> Bool {
+        setting.lowercased().hasPrefix("as ")
     }
 
     /// The cut of a wardrobe to describe; `nil` for ``WardrobeChoice/none``.

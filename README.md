@@ -99,6 +99,47 @@ job (the `imagine` CLI does it on first use).
   program under `~/Library/Caches/coreai-cache/<OS build>/<program>` — about the model's own size.
   Test runners and scratch tools each get their own copy; that cache is safe to delete.
 
+## Face fix (0.8)
+
+```swift
+let editor = try await ImageGenerator(bundle: fluxFolder)          // FLUX.2 Klein 4B, editing parts installed
+let small = try ImageGenerator.smallFaces(in: picture)             // Vision only, no model: skip the load when empty
+let fixed = try await editor.fixFaces(in: picture, prompt: "a woman", seed: 7)
+fixed.image          // the original's pixels everywhere but the redrawn ovals
+fixed.faces          // per face: box, qualityBefore/After, shift, kept, untouchedMaxDifference
+```
+
+Small faces melt — a full-length figure's face is ~60 px of 1024. `fixFaces` finds each face no
+larger than `FaceFixOptions.largestFace` of the picture's longer side (0.15), cuts a square of
+`context` × the face (3.5) around it, has FLUX redraw it at 1024, and composites a soft oval over
+the face through the masked-edit path (a replacing mask). Faces are judged by Vision's face capture
+quality: a redraw rated below the original is discarded (`keepsOnlyImprovements`). The instruction
+names only the subject (the prompt's first part) and says what to keep; the whole scene prompt made
+FLUX draw a new scene in the square. There is no strength: the Core AI pipeline never reads
+`PipelineConfiguration.strength`, so `edit(…strength:)` has no effect — measured byte-identical at
+0.5 and 0.8. `StyleCategory.featuresPeople` says which styles have faces. Vision runs on iOS too.
+
+Measured on an M3 Max, SANA pictures from `--style tokyo` / `old-money` over several seeds; quality
+is Vision's face capture quality (0–1) before → after, by the square's size (× the face). For scale:
+clean faces of the same size scored 0.43–0.54, and a 327 px studio headshot 0.80.
+
+| Picture | Face | Before | ×2.0 | ×2.5 | ×3.5 | Moved | Outside the oval |
+|---|---|---|---|---|---|---|---|
+| tokyo, melted | 73 px | 0.28 | 0.65 | 0.65 | **0.68** | 2.5–3.7 px | identical |
+| tokyo-21 | 54 px | 0.35 | 0.43 | 0.42 | **0.45** | 3.2–4.0 px | identical |
+| tokyo-30 | 71 px | 0.49 | 0.65 | 0.68 | **0.69** | 0.7–2.2 px | identical |
+| old-money-13 | 119 px | 0.41 | — | 0.59 | — | 5.5 px | identical |
+| old-money-4 | 181 px | 0.58 | — | 0.63, *a different man* | — | 2.2 px | identical |
+
+×3.5 rated best on every face, so it is the default. The size limit is 15% of the picture's side
+(154 px at 1024): the 119 px face went from melted to clean, while the 181 px one was fine already
+and came back as someone else — a redraw invents a face, so it is only worth it where there was no
+face to keep. With `--ref`, the redraw is given the reference pictures too, so it draws that
+person; that path is untested on a real likeness (no personal photos are used in tests). By eye
+every redraw sat in its picture with no visible edge. Time: each face is one FLUX edit — 106–209 s
+here, with the GPU shared with a training run the whole time (one 723 s outlier); unshared, a FLUX
+edit is about 20 s.
+
 ## Recipes (0.6)
 
 `ImageRecipe` is a picture as data — the prompt in named parts, the settings, the pictures it
@@ -165,8 +206,8 @@ so ~750 scenes stay reviewable as prose. A test fails the build on any line it c
 
 ## Testing
 
-`swift test` runs prompts, seeds, cropping, export recognition and provenance (PNG/JPEG/HEIC) with
-no model. With the exports named — `IMAGE_GENERATION_FLUX=<folder> IMAGE_GENERATION_SANA=<folder>
+`swift test` runs prompts, seeds, cropping, export recognition, provenance (PNG/JPEG/HEIC) and the
+face fix's geometry (which faces qualify, the square, the oval, the instruction) with no model. With the exports named — `IMAGE_GENERATION_FLUX=<folder> IMAGE_GENERATION_SANA=<folder>
 swift test` — it also checks, on the real models, that a seed reproduces its picture byte for byte,
 that seeds count up, that SANA refuses to edit, that FLUX edits, and (with an `aspect-16x9/` folder
 beside the SANA export) that 16:9 comes out 1344 × 768 and deterministic.

@@ -157,6 +157,7 @@ enum RecipeRules {
         case "settings.count": recipe.settings.count = try empty ? nil : integer(value, path: full)
         case "settings.upscale": recipe.settings.upscale = try empty ? nil : integer(value, path: full)
         case "settings.strength": recipe.settings.strength = try empty ? nil : number(value, path: full)
+        case "settings.fix_faces": recipe.settings.fixFaces = try empty ? nil : bool(value, path: full)
         case "inputs.edit": inputs.edit = text
         case "inputs.only": inputs.only = try list(value, path: full)
         case "inputs.replace": inputs.replace = try list(value, path: full)

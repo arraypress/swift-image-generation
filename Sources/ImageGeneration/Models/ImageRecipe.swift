@@ -101,9 +101,12 @@ public struct ImageRecipe: Codable, Sendable, Equatable {
         public var upscale: Int?
         /// With an edit: how far from the source, 0–1.
         public var strength: Double?
+        /// Redraw small faces afterwards (`true`), or not (`false`); `nil`
+        /// leaves it to the tool's default.
+        public var fixFaces: Bool?
 
         public init(model: String? = nil, aspect: String? = nil, seed: UInt32? = nil, steps: Int? = nil,
-                    count: Int? = nil, upscale: Int? = nil, strength: Double? = nil) {
+                    count: Int? = nil, upscale: Int? = nil, strength: Double? = nil, fixFaces: Bool? = nil) {
             self.model = model
             self.aspect = aspect
             self.seed = seed
@@ -111,10 +114,12 @@ public struct ImageRecipe: Codable, Sendable, Equatable {
             self.count = count
             self.upscale = upscale
             self.strength = strength
+            self.fixFaces = fixFaces
         }
 
         enum CodingKeys: String, CodingKey, CaseIterable {
             case model, aspect, seed, steps, count, upscale, strength
+            case fixFaces = "fix_faces"
         }
     }
 

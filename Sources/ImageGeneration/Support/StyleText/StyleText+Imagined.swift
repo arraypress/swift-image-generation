@@ -193,12 +193,12 @@ extension StyleText {
     look: cute anthropomorphic animal character, 3D animated film style
     camera: full figure
     light: soft studio light
-    - as a red panda in a cosy sweater | who: {subject} as a red panda character
-    - as a fox in a detective's coat | who: {subject} as a fox character
-    - as a rabbit in a gardener's apron | who: {subject} as a rabbit character
-    - as a wolf in a leather jacket | who: {subject} as a wolf character
-    - as a cat in a chef's outfit | who: {subject} as a cat character
-    - as an owl in a professor's tweed | who: {subject} as an owl character
+    - by a woodland campfire | who: {subject} as a red panda character in a cosy sweater
+    - on a foggy cobbled lane | who: {subject} as a fox character in a detective's coat
+    - among rows of vegetable beds | who: {subject} as a rabbit character in a gardener's apron
+    - under a neon-lit overpass | who: {subject} as a wolf character in a leather jacket
+    - in a bustling little kitchen | who: {subject} as a cat character in a chef's outfit
+    - in a book-lined study | who: {subject} as an owl character in a professor's tweed
 
     ## cosplay | Cosplay | fantasy
     look: cosplay photograph, convention quality costume
