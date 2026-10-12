@@ -120,6 +120,49 @@ identical `promptSent`. `avoid_text` left out means the model's default: FLUX.2 
 the others are told not to. Reading is strict on purpose: `JSONDecoder` ignores keys it does not
 know, so a misspelt `"lightning"` would otherwise vanish and the picture would quietly differ.
 
+## Styles (0.7)
+
+116 built-in styles in 12 categories — 742 scenes — as Swift data (`ImageStyle.all`), not a
+resource bundle, so they travel with a binary however it is installed. A style is a look with
+several scenes: `hard-flash` is seven different shots that share a flash and a lens, not one prompt.
+A scene becomes `ImageRecipe.Prompt` parts around a subject, so a picture made from a style saves as
+an ordinary recipe and replays without this table.
+
+```swift
+let style = ImageStyle.named("old-money")!
+let scene = style.sceneIndex(seed: 42)                   // seed % scenes: the same seed, the same scene
+let prompt = style.prompt(scene: scene, subject: "a woman in her 40s", wear: .feminine)
+ImageRecipe(prompt: prompt).composedPrompt
+```
+
+| Category | Styles |
+|---|---|
+| headshots | 14 — corporate, executive, founder, healthcare, lawyer, author, actor, chef, keynote… |
+| dating | 3 — dating profile, out and about, date night |
+| couples | 4 — couple portrait, engagement, wedding day, through the ages |
+| lifestyle | 14 — slow weekend, mirror selfie, nature, adventure, fitness, hard flash, instant film… |
+| fashion | 23 — old money, quiet luxury, dark academia, street style, try-ons, hair, beard, makeup… |
+| travel | 12 — Paris, Tokyo, Greek islands, Bali, digital nomad, traditional dress… |
+| retro | 8 — the 1920s to Y2K |
+| seasonal | 11 — Halloween, Christmas, Diwali, Holi, Eid, Hanukkah, Lunar New Year… |
+| events | 7 — festival, DJ set, club, rooftop, football, graduation, birthday |
+| fantasy | 15 — fairy tale, tarot, chibi, anime, pixel art, action figure, character sheet… |
+| art | 4 — fine-art portrait, tattoo, album cover, reaction face |
+| food | 1 — food photography (the subject is the dish) |
+
+`wear` picks a cut of each scene's clothes: `.neutral` (the default, wording that assumes nothing),
+`.feminine` or `.masculine` where a scene has one — otherwise the neutral wording — or `.none` for a
+subject that wears nothing, a pet or a dish. Nothing about gender is required.
+
+**Where the wording comes from.** The ideas surveyed a commercial style catalogue; every scene was
+written here. Measured 2026-10-13: across all 742 scenes in every wardrobe cut, composed as sent,
+**no run of six words** is shared with any of that catalogue's 1,978 prompts (65,259 six-word runs,
+case and punctuation ignored). Left out on purpose: celebrity look-alikes, mugshots, protests, ID
+photos, anything sexual or suggestive, anything with children, and brand, venue and event names.
+
+The text lives in `Support/StyleText/` in a small line format (described in `StyleCatalog.swift`),
+so ~750 scenes stay reviewable as prose. A test fails the build on any line it cannot read.
+
 ## Testing
 
 `swift test` runs prompts, seeds, cropping, export recognition and provenance (PNG/JPEG/HEIC) with
