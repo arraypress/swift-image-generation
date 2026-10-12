@@ -40,7 +40,8 @@ public enum ImageGenerationError: Error, LocalizedError, Sendable, Equatable {
     public var errorDescription: String? {
         switch self {
         case .notABundle(let path): "\(path) is not a Core AI image-generation export"
-        case .unsupportedModel(let name): "\(name) is not a model this runs (FLUX.2 Klein 4B or SANA Sprint 1.6B)"
+        case .unsupportedModel(let name):
+            "\(name) is not a model this runs (\(GenerationModel.allCases.map(\.displayName).joined(separator: ", ")))"
         case .loadFailed(let why): "the model could not be loaded: \(why)"
         case .invalidPrompt(let why): why
         case .invalidCount(let count): "\(count) is not a picture count this makes (1–\(ImageGenerator.maximumCount))"

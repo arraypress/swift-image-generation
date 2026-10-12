@@ -14,7 +14,7 @@ let night = try await generator.edit(pictures[0].image, "make it night")
 
 ## Models
 
-Two, chosen by measurement on an M3 Max (2026-10-11) from five candidates on the same eight
+Two defaults, chosen by measurement on an M3 Max (2026-10-11) from five candidates on the same eight
 prompts — FLUX.2 Klein 4B, SANA Sprint 0.6B and 1.6B, Z-Image Turbo and GLM-Image:
 
 | | FLUX.2 [klein] 4B | SANA Sprint 1.6B |
@@ -26,6 +26,14 @@ prompts — FLUX.2 Klein 4B, SANA Sprint 0.6B and 1.6B, Z-Image Turbo and GLM-Im
 | peak memory | 8.6 GB (4.6 GB with `lowMemory`) | 3.0 GB |
 | disk | 13 GB (+7.3 GB editing, +7.3 GB 16:9) | 8.2 GB (+3.3 GB 16:9) |
 | licence | Apache-2.0 | Apache-2.0 + MIT + Gemma Terms of Use |
+
+**FLUX.2 [klein] 9B** (0.3, `.flux2Klein9B`) is the opt-in third: on the same prompts a tie with 4B
+on photos, worse on an app icon, **clearly better at longer text**; about 2.3× slower (median ≈110 s
+a picture on a 36 GB Mac with `lowMemory`, 4.1 GB peak; all parts at once was *slower*, 176 s — see
+`loadsPartsOneAtATime(physicalMemory:)`). 1:1 only, no editing, and **non-commercial** (FLUX
+Non-Commercial License v2.1, `isNonCommercial`): a caller shows the terms and has them accepted, and
+output must be filtered or reviewed before it is shared. The export is recognised from its own
+`metadata.json` like the others.
 
 Z-Image Turbo matched FLUX on quality at 13× the time; GLM-Image's only Core AI build is compiled
 for M4-class GPUs. Both exports are Apple's official recipe
