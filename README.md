@@ -53,9 +53,10 @@ job (the `imagine` CLI does it on first use).
   exported yet. Editing is 1:1 only.
 - **A fork of Apple's pipeline, for 16:9.** Apple's `FlowTransformerPipeline` assumes a square image
   (one `spatialSide` for the token grid and the decode). This depends on
-  [arraypress/coreai-models](https://github.com/arraypress/coreai-models) `1.0.0-nonsquare.1`: Apple's
-  1.0.0 plus a 45-line change reading `image_width`/`image_height` from an export's metadata. Square
-  output is pixel-identical to Apple's pipeline (measured, both models); Apple's 79 diffusion tests pass.
+  [arraypress/coreai-models](https://github.com/arraypress/coreai-models) `1.0.0-nonsquare.2`: Apple's
+  1.0.0 plus a 45-line change reading `image_width`/`image_height` from an export's metadata, and
+  (`.2`) an ~80-line one taking several reference pictures. Square output is pixel-identical to
+  Apple's pipeline (measured, both models); Apple's diffusion tests pass.
 - **Deterministic.** The same model, prompt and seed make the same picture, byte for byte. A run
   of *n* uses seeds `seed…seed+n−1`, so any picture can be remade alone from its seed.
 - **No text by default.** Both models misspell anything longer than a short word and invent
@@ -66,7 +67,26 @@ job (the `imagine` CLI does it on first use).
 - **Editing** is FLUX only, and needs `Transformer_img2img_full.aimodel` and `VAEEncoder.aimodel`
   beside the rest (`supportsEditing`). The source is cropped to its centred square first. `strength`
   is Apple's: 0.85 by default, 0.8–0.9 to change content, 0.5–0.75 for style.
-- **Marked as AI-generated.** `GeneratedImage.write(to:generator:embedPrompt:)` writes PNG, JPEG
+- **Steps.** `steps:` on `generate` and `edit` — SANA 1–4 (its export's default 2), FLUX 1–28
+  (default 4; Klein is distilled for 4 — measured ~8 s a step, and 8 steps no better). Out of range throws `.invalidSteps` before any work.
+- **References** (0.4). `references:` gives FLUX.2 Klein 4B further pictures to draw from, up to
+  `ImageGenerator.maximumReferences` (4) counting an edited picture; each is cropped square. One
+  picture in is seen whole (4,096 tokens). With more, the traced reference route still holds 4,096
+  tokens, so each picture is averaged to a quarter grid and the four quarters are dealt out in turn,
+  each picture on its own position offset as diffusers does (needs arraypress/coreai-models
+  `1.0.0-nonsquare.2`). More than four throws `.tooManyReferences`.
+- **Masked edits** (0.4). `edit(_:_:within:…)` takes `RegionMask`s (from a segmenter — `imagine`
+  uses SAM 3), edits a square around them at the model's size, enlarges it back through your
+  `enlarge` closure, and composites only the masked part into the full-size original:
+  - masks are grown and feathered; the grown ring is admitted only where it has the object's own
+    colour, so a mask that stops a pixel short is covered without a glow onto the background;
+  - a plain mask keeps the original's high frequencies and takes the edit's low ones (colour and
+    shading) — skin, eyes and fabric survive a recolour. `replaces: true` takes the edit's own
+    detail, for things removed or added. The low-pass is a normalised blur that leaves the
+    replaced zone out, so a removed object does not smear into what is kept;
+  - work happens in the picture's own colour space and every pixel the mask cannot touch is the
+    original's bytes; `MaskedEditReport.untouchedMaxDifference` measures it (0 in every test).
+ `GeneratedImage.write(to:generator:embedPrompt:)` writes PNG, JPEG
   or HEIC carrying the IPTC digital-source type `trainedAlgorithmicMedia`, the model as IPTC
   `AISystemUsed` and your tool as `xmp:CreatorTool` (checked with exiftool). The prompt is written
   only with `embedPrompt: true`. The SDK has no C2PA API, so there are no signed credentials.

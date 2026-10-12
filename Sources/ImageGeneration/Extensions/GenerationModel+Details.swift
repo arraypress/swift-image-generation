@@ -34,6 +34,12 @@ public extension GenerationModel {
     /// Whether the model can edit an existing picture (image-to-image).
     var supportsEditing: Bool { self == .flux2Klein4B }
 
+    /// The step counts the model accepts. SANA Sprint is a 1–4-step model
+    /// (its export defaults to 2, with a tuned midpoint); FLUX.2 Klein is
+    /// step-distilled for 4 — fewer is rougher, more helps little — and runs
+    /// up to 28, where an undistilled FLUX would stop.
+    var stepRange: ClosedRange<Int> { self == .sanaSprint16B ? 1...4 : 1...28 }
+
     /// The shapes this library's exports come in: 9B is square only.
     var aspects: [ImageAspect] { self == .flux2Klein9B ? [.square] : ImageAspect.allCases }
 

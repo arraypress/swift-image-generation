@@ -28,6 +28,10 @@ public final class ImageGenerator: Sendable {
     /// The most pictures one call makes.
     public static let maximumCount = 16
 
+    /// The most pictures FLUX.2 Klein takes in, the edited one included: the
+    /// traced reference route holds four quarter-size grids.
+    public static let maximumReferences = 4
+
     /// The model the export holds.
     public let model: GenerationModel
 
@@ -97,20 +101,29 @@ public final class ImageGenerator: Sendable {
     ///   - allowText: Leave the prompt alone. By default "no text, no letters,
     ///     no typography" is appended, because both models invent and misspell
     ///     lettering — add real text afterwards instead.
+    ///   - steps: Denoising steps, within ``GenerationModel/stepRange``; the
+    ///     export's own default (FLUX 4, SANA 2) when `nil`.
+    ///   - references: Pictures to draw from — a face, a product, a style —
+    ///     up to ``maximumReferences``; FLUX.2 Klein 4B only. Each is cropped to
+    ///     its centred square.
     ///   - progress: Called after each denoising step with (step, steps).
     /// - Returns: The pictures, in seed order, at the export's ``size``.
     /// - Throws: ``ImageGenerationError``; `.cancelled` when the task is.
     public func generate(_ prompt: String, seed: UInt32? = nil, count: Int = 1, allowText: Bool = false,
+                         steps: Int? = nil, references: [CGImage] = [],
                          progress: (@Sendable (Int, Int) -> Void)? = nil) async throws(ImageGenerationError) -> [GeneratedImage] {
         let text = try PromptText.validated(prompt)
         guard (1...Self.maximumCount).contains(count) else { throw .invalidCount(count) }
+        let stepCount = try resolvedSteps(steps)
+        let extra = try checkedReferences(references, besides: 0)
         let sent = PromptText.composed(text, allowText: allowText)
         var pictures: [GeneratedImage] = []
         for picture in SeedPlan.seeds(start: seed, count: count) {
-            let config = configuration(prompt: sent, seed: picture, startingImage: nil, strength: 1)
+            let config = configuration(prompt: sent, seed: picture, startingImage: nil, strength: 1,
+                                       steps: stepCount, references: extra)
             let (image, seconds) = try await run(config, progress: progress)
             pictures.append(GeneratedImage(image: image, seed: picture, model: model, prompt: text,
-                                           promptSent: sent, edited: false, seconds: seconds))
+                                           promptSent: sent, edited: !extra.isEmpty, seconds: seconds))
         }
         return pictures
     }
@@ -126,13 +139,34 @@ public final class ImageGenerator: Sendable {
     ///   - seed: Random when `nil`.
     ///   - strength: How far from the source, 0…1. 0.85 is Apple's default:
     ///     0.8–0.9 for changes of content, 0.5–0.75 for style or texture.
-    ///   - allowText: As for ``generate(_:seed:count:allowText:progress:)``.
-    ///   - progress: As for ``generate(_:seed:count:allowText:progress:)``.
+    ///   - allowText: As for ``generate(_:seed:count:allowText:steps:references:progress:)``.
+    ///   - steps: As for ``generate(_:seed:count:allowText:steps:references:progress:)``.
+    ///   - references: Further pictures to draw from, after `image`; together
+    ///     at most ``maximumReferences``.
+    ///   - progress: As for ``generate(_:seed:count:allowText:steps:references:progress:)``.
     /// - Throws: ``ImageGenerationError``; `.editingUnavailable` for SANA or
     ///   when the editing parts are not installed.
     public func edit(_ image: CGImage, _ instruction: String, seed: UInt32? = nil, strength: Float = 0.85,
-                     allowText: Bool = false,
+                     allowText: Bool = false, steps: Int? = nil, references: [CGImage] = [],
                      progress: (@Sendable (Int, Int) -> Void)? = nil) async throws(ImageGenerationError) -> GeneratedImage {
+        try requireEditing()
+        let extra = try checkedReferences(references, besides: 1)
+        guard strength > 0, strength <= 1 else { throw .invalidPrompt("Strength is more than 0 and at most 1") }
+        let text = try PromptText.validated(instruction)
+        let stepCount = try resolvedSteps(steps)
+        let sent = PromptText.composed(text, allowText: allowText)
+        let picture = SeedPlan.seeds(start: seed, count: 1)[0]
+        let config = configuration(prompt: sent, seed: picture, startingImage: SquareCrop.centred(image),
+                                   strength: strength, steps: stepCount, references: extra)
+        let (result, seconds) = try await run(config, progress: progress)
+        return GeneratedImage(image: result, seed: picture, model: model, prompt: text,
+                              promptSent: sent, edited: true, seconds: seconds)
+    }
+
+    // MARK: - Plumbing
+
+    /// Throws unless this model and export can take a picture in.
+    private func requireEditing() throws(ImageGenerationError) {
         guard model.supportsEditing else {
             throw .editingUnavailable("\(model.displayName) cannot edit pictures; FLUX.2 Klein 4B can")
         }
@@ -141,29 +175,37 @@ public final class ImageGenerator: Sendable {
                 ? "Editing works on the square export only; this one is \(size.width)×\(size.height)"
                 : "This FLUX.2 Klein export has no editing parts (Transformer_img2img_full, VAEEncoder)")
         }
-        guard strength > 0, strength <= 1 else { throw .invalidPrompt("Strength is more than 0 and at most 1") }
-        let text = try PromptText.validated(instruction)
-        let sent = PromptText.composed(text, allowText: allowText)
-        let picture = SeedPlan.seeds(start: seed, count: 1)[0]
-        let config = configuration(prompt: sent, seed: picture, startingImage: SquareCrop.centred(image), strength: strength)
-        let (result, seconds) = try await run(config, progress: progress)
-        return GeneratedImage(image: result, seed: picture, model: model, prompt: text,
-                              promptSent: sent, edited: true, seconds: seconds)
     }
 
-    // MARK: - Plumbing
+    /// The references, checked against the limit and cropped square.
+    private func checkedReferences(_ references: [CGImage], besides others: Int) throws(ImageGenerationError) -> [CGImage] {
+        guard !references.isEmpty else { return [] }
+        try requireEditing()
+        guard references.count + others <= Self.maximumReferences else {
+            throw .tooManyReferences(references.count + others)
+        }
+        return references.map(SquareCrop.centred)
+    }
+
+    /// The step count to run: the caller's, checked, or the export's default.
+    private func resolvedSteps(_ steps: Int?) throws(ImageGenerationError) -> Int {
+        guard let steps else { return defaults.steps }
+        guard model.stepRange.contains(steps) else { throw .invalidSteps(steps, model) }
+        return steps
+    }
 
     private func configuration(prompt: String, seed: UInt32, startingImage: CGImage?,
-                               strength: Float) -> PipelineConfiguration {
+                               strength: Float, steps: Int, references: [CGImage] = []) -> PipelineConfiguration {
         PipelineConfiguration(
             prompt: prompt, seed: seed,
-            stepCount: defaults.steps, guidanceScale: defaults.guidance,
+            stepCount: steps, guidanceScale: defaults.guidance,
             schedulerType: .discreteFlow,
             startingImage: startingImage, strength: strength,
             encoderScaleFactor: defaults.encoderScale,
             decoderScaleFactor: defaults.decoderScale,
             decoderShiftFactor: defaults.decoderShift,
-            lazyModelLoading: defaults.lazy)
+            lazyModelLoading: defaults.lazy,
+            additionalReferences: references)
     }
 
     private func run(_ config: PipelineConfiguration,
