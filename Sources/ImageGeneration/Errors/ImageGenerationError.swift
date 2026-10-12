@@ -47,6 +47,9 @@ public enum ImageGenerationError: Error, LocalizedError, Sendable, Equatable {
     /// The picture could not be written.
     case writeFailed(String)
 
+    /// A recipe that could not be read, or a field it does not have.
+    case invalidRecipe(String)
+
     public var errorDescription: String? {
         switch self {
         case .notABundle(let path): "\(path) is not a Core AI image-generation export"
@@ -64,6 +67,7 @@ public enum ImageGenerationError: Error, LocalizedError, Sendable, Equatable {
         case .generationFailed(let why): "the model failed: \(why)"
         case .cancelled: "cancelled"
         case .writeFailed(let why): "the picture could not be written: \(why)"
+        case .invalidRecipe(let why): why
         }
     }
 }

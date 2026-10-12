@@ -99,6 +99,27 @@ job (the `imagine` CLI does it on first use).
   program under `~/Library/Caches/coreai-cache/<OS build>/<program>` — about the model's own size.
   Test runners and scratch tools each get their own copy; that cache is safe to delete.
 
+## Recipes (0.6)
+
+`ImageRecipe` is a picture as data — the prompt in named parts, the settings, the pictures it
+starts from, and what made it — as versioned JSON (`"imagine": 1`). `imagine --save-recipe` writes
+it and `imagine recipe` replays it; anything else drawing with these models can read the same file.
+
+```swift
+var recipe = try ImageRecipe.decode(Data(contentsOf: url))   // refuses unknown keys, naming them
+recipe = try recipe.setting("style", to: "watercolour")      // one field, from command-line text
+recipe.composedPrompt   // "a red bicycle, rusty chain, against a blue door, …, watercolour"
+recipe.promptSent       // what the model is given, the no-text suffix included
+try recipe.encoded().write(to: url)
+```
+
+The prompt is either `text` or parts composed in a fixed order — subject, details, setting,
+lighting, camera, style, extra — joined with ", " (trailing punctuation on each part dropped). A
+recipe holding only `text` composes to exactly that text, so a typed prompt round-trips to the
+identical `promptSent`. `avoid_text` left out means the model's default: FLUX.2 Klein 9B draws text,
+the others are told not to. Reading is strict on purpose: `JSONDecoder` ignores keys it does not
+know, so a misspelt `"lightning"` would otherwise vanish and the picture would quietly differ.
+
 ## Testing
 
 `swift test` runs prompts, seeds, cropping, export recognition and provenance (PNG/JPEG/HEIC) with
