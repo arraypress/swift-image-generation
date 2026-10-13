@@ -77,7 +77,7 @@ public extension ImageGenerator {
     ///     that large.
     /// - Returns: The result at `image`'s size, with the report and plan.
     func edit(_ image: CGImage, _ instruction: String, within masks: [RegionMask], seed: UInt32? = nil,
-              strength: Float = 0.85, allowText: Bool = false, steps: Int? = nil,
+              strength: Float = 1, allowText: Bool = false, steps: Int? = nil,
               references: [CGImage] = [],
               enlarge: (@Sendable (CGImage, Int) async throws -> CGImage)? = nil,
               progress: (@Sendable (Int, Int) -> Void)? = nil)

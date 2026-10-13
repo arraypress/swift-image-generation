@@ -137,8 +137,10 @@ public final class ImageGenerator: Sendable {
     ///   - image: The picture to change.
     ///   - instruction: What to change, e.g. "make it night".
     ///   - seed: Random when `nil`.
-    ///   - strength: How far from the source, 0…1. 0.85 is Apple's default:
-    ///     0.8–0.9 for changes of content, 0.5–0.75 for style or texture.
+    ///   - strength: How far the result may move from the source, 0…1. 1 (the
+    ///     default) redraws from pure noise with the source only as a reference;
+    ///     below 1 the redraw starts from the source itself blended with noise, so
+    ///     lower keeps more of it — layout, faces, fine detail.
     ///   - allowText: As for ``generate(_:seed:count:allowText:steps:references:progress:)``.
     ///   - steps: As for ``generate(_:seed:count:allowText:steps:references:progress:)``.
     ///   - references: Further pictures to draw from, after `image`; together
@@ -146,7 +148,7 @@ public final class ImageGenerator: Sendable {
     ///   - progress: As for ``generate(_:seed:count:allowText:steps:references:progress:)``.
     /// - Throws: ``ImageGenerationError``; `.editingUnavailable` for SANA or
     ///   when the editing parts are not installed.
-    public func edit(_ image: CGImage, _ instruction: String, seed: UInt32? = nil, strength: Float = 0.85,
+    public func edit(_ image: CGImage, _ instruction: String, seed: UInt32? = nil, strength: Float = 1,
                      allowText: Bool = false, steps: Int? = nil, references: [CGImage] = [],
                      progress: (@Sendable (Int, Int) -> Void)? = nil) async throws(ImageGenerationError) -> GeneratedImage {
         try requireEditing()

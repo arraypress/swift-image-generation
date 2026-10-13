@@ -15,7 +15,7 @@ let package = Package(
         // SANA Sprint pipelines — schedulers, tokenizers, VAE codecs. A fork of
         // 1.0.0 with one change: exports may be non-square (image_width /
         // image_height in the metadata), which Apple's pipeline assumed away.
-        .package(url: "https://github.com/arraypress/coreai-models.git", exact: "1.0.0-nonsquare.2"),
+        .package(url: "https://github.com/arraypress/coreai-models.git", exact: "1.0.0-nonsquare.4"),
     ],
     targets: [
         // NonisolatedNonsendingByDefault stays OFF: generation is seconds of

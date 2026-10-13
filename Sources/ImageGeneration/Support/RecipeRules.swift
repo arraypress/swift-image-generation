@@ -48,6 +48,29 @@ enum RecipeRules {
         return recipe.settings.model == GenerationModel.flux2Klein9B.rawValue
     }
 
+    /// The strength a replay should use. Before imagine 0.9.0 the pipeline never read
+    /// strength — every edit was a full redraw whatever the recipe said, and edits
+    /// recorded 0.85 by default — so an older recipe's strength is dropped and the
+    /// replay draws what it drew then.
+    static func effectiveStrength(_ recipe: ImageRecipe) -> Double? {
+        guard let strength = recipe.settings.strength else { return nil }
+        guard let tool = recipe.provenance?.tool,
+              let version = tool.split(separator: " ").last.map(String.init) else { return strength }
+        return isBefore(version, "0.9.0") ? nil : strength
+    }
+
+    /// Whether dotted version `a` sorts before `b`, numerically per part.
+    static func isBefore(_ a: String, _ b: String) -> Bool {
+        let left = a.split(separator: ".").map { Int($0) ?? 0 }
+        let right = b.split(separator: ".").map { Int($0) ?? 0 }
+        for index in 0..<max(left.count, right.count) {
+            let l = index < left.count ? left[index] : 0
+            let r = index < right.count ? right[index] : 0
+            if l != r { return l < r }
+        }
+        return false
+    }
+
     // MARK: JSON
 
     /// Pretty, key-sorted JSON with slashes left alone, as the fleet writes recipes.

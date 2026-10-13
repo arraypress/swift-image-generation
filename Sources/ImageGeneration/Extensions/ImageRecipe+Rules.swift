@@ -27,6 +27,11 @@ public extension ImageRecipe {
                                   allowText: drawsText)
     }
 
+    /// The edit strength to replay with: `settings.strength`, except from a recipe
+    /// written before imagine 0.9.0, when strength had no effect (the replay then
+    /// redraws in full, as the original run did).
+    var effectiveStrength: Double? { RecipeRules.effectiveStrength(self) }
+
     /// The model the settings name, or `nil` when they name none.
     var model: GenerationModel? { settings.model.flatMap(GenerationModel.init(rawValue:)) }
 

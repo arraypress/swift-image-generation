@@ -29,12 +29,17 @@ public struct FaceFixOptions: Sendable, Equatable {
     /// as the old one; otherwise the original face stays.
     public var keepsOnlyImprovements: Bool
 
+    /// How far a redraw may move from the face it replaces, 0…1 — the edit
+    /// strength. 1 redraws from noise, the face square only a reference.
+    public var strength: Float
+
     public init(largestFace: Double = 0.15, context: Double = 3.5,
-                minimumConfidence: Float = 0.5, keepsOnlyImprovements: Bool = true) {
+                minimumConfidence: Float = 0.5, keepsOnlyImprovements: Bool = true, strength: Float = 1) {
         self.largestFace = largestFace
         self.context = context
         self.minimumConfidence = minimumConfidence
         self.keepsOnlyImprovements = keepsOnlyImprovements
+        self.strength = strength
     }
 
     /// The measured defaults.

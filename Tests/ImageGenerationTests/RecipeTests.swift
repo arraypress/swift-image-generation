@@ -118,4 +118,20 @@ struct RecipeTests {
             #expect(throws: ImageGenerationError.self, "\(path)=\(value)") { try Self.full.setting(path, to: value) }
         }
     }
+
+    @Test("Strength replays only from recipes written once it worked (0.9.0)")
+    func strengthByVersion() {
+        var recipe = ImageRecipe(prompt: .init(text: "a fox"), settings: .init(strength: 0.85),
+                                 provenance: .init(tool: "imagine 0.8.0"))
+        #expect(recipe.effectiveStrength == nil)
+        recipe.provenance = .init(tool: "imagine 0.9.0")
+        #expect(recipe.effectiveStrength == 0.85)
+        recipe.provenance = .init(tool: "imagine 0.10.2")
+        #expect(recipe.effectiveStrength == 0.85)
+        recipe.provenance = nil  // hand-written: taken at its word
+        #expect(recipe.effectiveStrength == 0.85)
+        recipe.settings.strength = nil
+        #expect(recipe.effectiveStrength == nil)
+        #expect(RecipeRules.isBefore("0.8.9", "0.9.0") && !RecipeRules.isBefore("0.9", "0.9.0"))
+    }
 }

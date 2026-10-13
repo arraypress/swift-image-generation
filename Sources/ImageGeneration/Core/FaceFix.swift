@@ -63,10 +63,9 @@ public extension ImageGenerator {
             let plan = FacePlan.plan(for: face.box, imageWidth: width, imageHeight: height, context: options.context)
             let mask = FacePlan.mask(for: face.box, imageWidth: width, imageHeight: height)
             let square = try MaskedEdit.source(current, plan: plan, size: size.width)
-            // No strength: the Core AI pipeline never reads it (Klein edits from
-            // full noise with the square as reference) — 0.5 and 0.8 measured
-            // byte-identical. The instruction is what keeps the composition.
-            let made = try await edit(square, instruction, seed: seed, allowText: allowText,
+            // Below 1 the redraw starts from the face itself, so it keeps more
+            // of who it was; at 1 the instruction alone keeps the composition.
+            let made = try await edit(square, instruction, seed: seed, strength: options.strength, allowText: allowText,
                                       references: references) { step, steps in
                 progress?(index + 1, small.count, step, steps)
             }

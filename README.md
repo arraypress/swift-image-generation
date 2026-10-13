@@ -67,8 +67,26 @@ job (the `imagine` CLI does it on first use).
   no typography"* — measured, that removed the invented lettering — unless `allowText: true`.
   Draw real text afterwards with proper type.
 - **Editing** is FLUX only, and needs `Transformer_img2img_full.aimodel` and `VAEEncoder.aimodel`
-  beside the rest (`supportsEditing`). The source is cropped to its centred square first. `strength`
-  is Apple's: 0.85 by default, 0.8–0.9 to change content, 0.5–0.75 for style.
+  beside the rest (`supportsEditing`). The source is cropped to its centred square first.
+- **Strength** (0.9) is how far an edit may move from the source, 0…1, default 1. At 1 FLUX redraws
+  from pure noise with the source only as a reference (what every edit did before 0.9). Below 1 it
+  starts from the source itself blended with noise (fork `1.0.0-nonsquare.4`: a re-spaced schedule
+  of `steps / strength` steps entered at `total − steps`, so 4 steps still run and every strength is
+  reachable). Up to 0.8 the composition is the source's, exactly. Measured, SSIM to the source,
+  stock owl and parrot, "make it a watercolour painting" / "relight it with warm golden hour
+  sunlight", seed 7:
+
+  | strength | 0.2 | 0.4 | 0.6 | 0.8 | 1.0 |
+  |---|---|---|---|---|---|
+  | owl, watercolour | 0.994 | 0.976 | 0.843 | 0.638 | 0.559 |
+  | owl, golden hour | 0.994 | 0.853 | 0.748 | 0.641 | 0.515 |
+  | parrot, watercolour | 0.994 | 0.992 | 0.972 | 0.637 | 0.490 |
+  | parrot, golden hour | 0.994 | 0.985 | 0.923 | 0.666 | 0.553 |
+
+  Monotonic everywhere. The big step is between 0.6 and 0.8: Klein's 4-step schedule is shifted
+  hard toward noise, so the entry noise rises steeply there. 0.7–0.85 restyles while keeping the
+  layout; ≤ 0.4 is a light touch. 1.0 is byte-identical to 0.8.x. SANA cannot take a strength: its
+  export has no VAE encoder to bring a picture into its latents.
 - **Steps.** `steps:` on `generate` and `edit` — SANA 1–4 (its export's default 2), FLUX 1–28
   (default 4; Klein is distilled for 4 — measured ~8 s a step, and 8 steps no better). Out of range throws `.invalidSteps` before any work.
 - **References** (0.4). `references:` gives FLUX.2 Klein 4B further pictures to draw from, up to
@@ -115,9 +133,12 @@ larger than `FaceFixOptions.largestFace` of the picture's longer side (0.15), cu
 the face through the masked-edit path (a replacing mask). Faces are judged by Vision's face capture
 quality: a redraw rated below the original is discarded (`keepsOnlyImprovements`). The instruction
 names only the subject (the prompt's first part) and says what to keep; the whole scene prompt made
-FLUX draw a new scene in the square. There is no strength: the Core AI pipeline never reads
-`PipelineConfiguration.strength`, so `edit(…strength:)` has no effect — measured byte-identical at
-0.5 and 0.8. `StyleCategory.featuresPeople` says which styles have faces. Vision runs on iOS too.
+FLUX draw a new scene in the square. `FaceFixOptions.strength` (0.9) defaults to 1, a full
+redraw, because a melted face is only repaired from noise: measured at 0.4 / 0.6 / 1.0, a melted
+71 px face scored 0.25 / 0.35 / 0.67 (from 0.28), a melted 118 px one 0.41 / 0.45 / 0.57 (from 0.41).
+Lower strength does keep identity — a Vision feature-print distance to the old face of 0.21 / 0.23
+/ 0.45 on a fine 180 px face — but it barely improved it (0.58 → 0.59 / 0.60 / 0.62), so the size
+cap stays and lower strength is there only for a gentle pass. `StyleCategory.featuresPeople` says which styles have faces. Vision runs on iOS too.
 
 Measured on an M3 Max, SANA pictures from `--style tokyo` / `old-money` over several seeds; quality
 is Vision's face capture quality (0–1) before → after, by the square's size (× the face). For scale:
@@ -215,7 +236,7 @@ beside the SANA export) that 16:9 comes out 1344 × 768 and deterministic.
 ## Requirements
 
 macOS 27 / iOS 27 (Core AI), Swift 6.2. `coreai-models` — the arraypress fork of Apple's 1.0.0 (see
-above), pinned exactly.
+above), pinned exactly to `1.0.0-nonsquare.4` (strength).
 
 ## Licence
 
