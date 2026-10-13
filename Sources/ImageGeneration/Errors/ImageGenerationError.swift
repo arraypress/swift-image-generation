@@ -50,6 +50,12 @@ public enum ImageGenerationError: Error, LocalizedError, Sendable, Equatable {
     /// A recipe that could not be read, or a field it does not have.
     case invalidRecipe(String)
 
+    /// A person file or LoRA that could not be read, or does not fit the slot.
+    case invalidPerson(String)
+
+    /// A person asked for where the export or the run cannot take one.
+    case personUnavailable(String)
+
     public var errorDescription: String? {
         switch self {
         case .notABundle(let path): "\(path) is not a Core AI image-generation export"
@@ -68,6 +74,8 @@ public enum ImageGenerationError: Error, LocalizedError, Sendable, Equatable {
         case .cancelled: "cancelled"
         case .writeFailed(let why): "the picture could not be written: \(why)"
         case .invalidRecipe(let why): why
+        case .invalidPerson(let why): why
+        case .personUnavailable(let why): why
         }
     }
 }

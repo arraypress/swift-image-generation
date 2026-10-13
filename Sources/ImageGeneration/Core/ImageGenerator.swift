@@ -12,6 +12,7 @@
 //  M3 Max.
 //
 
+import CoreAI
 import CoreAIDiffusionPipeline
 import CoreGraphics
 import Foundation
@@ -45,6 +46,11 @@ public final class ImageGenerator: Sendable {
     /// with its editing parts (`Transformer_img2img_full`, `VAEEncoder`)
     /// beside the rest.
     public let supportsEditing: Bool
+
+    /// The export's LoRA slot (`slot.json`), or `nil` for a plain export. With
+    /// one, ``generate(_:seed:count:allowText:steps:references:person:progress:)``
+    /// can draw a ``Person``; without a person it draws exactly as a plain export.
+    public let loraSlot: LoRASlotLayout?
 
     private let pipeline: FlowTransformerPipeline
     private let defaults: Defaults
@@ -83,6 +89,7 @@ public final class ImageGenerator: Sendable {
         self.size = pipeline.defaultImageSize
         // Editing works on a square export only: FLUX's reference tokens are traced square.
         self.supportsEditing = model.supportsEditing && pipeline.supportsImageToImage && !pipeline.isNonSquare
+        self.loraSlot = try LoRASlotLayout.inBundle(bundle)
         self.defaults = Defaults(
             steps: config.defaultSteps ?? DiffusionDefaults.Runner.steps,
             guidance: config.defaultGuidanceScale ?? DiffusionDefaults.Runner.guidanceScale,
@@ -106,21 +113,27 @@ public final class ImageGenerator: Sendable {
     ///   - references: Pictures to draw from — a face, a product, a style —
     ///     up to ``maximumReferences``; FLUX.2 Klein 4B only. Each is cropped to
     ///     its centred square.
+    ///   - person: Someone a LoRA has learned, drawn through the export's
+    ///     ``loraSlot`` — put their ``Person/trigger`` in the prompt. Text to
+    ///     image only: the slot is in the text-to-image transformer.
     ///   - progress: Called after each denoising step with (step, steps).
     /// - Returns: The pictures, in seed order, at the export's ``size``.
-    /// - Throws: ``ImageGenerationError``; `.cancelled` when the task is.
+    /// - Throws: ``ImageGenerationError``; `.cancelled` when the task is;
+    ///   `.personUnavailable` for a person on a plain export or with references.
     public func generate(_ prompt: String, seed: UInt32? = nil, count: Int = 1, allowText: Bool = false,
-                         steps: Int? = nil, references: [CGImage] = [],
+                         steps: Int? = nil, references: [CGImage] = [], person: Person? = nil,
                          progress: (@Sendable (Int, Int) -> Void)? = nil) async throws(ImageGenerationError) -> [GeneratedImage] {
         let text = try PromptText.validated(prompt)
         guard (1...Self.maximumCount).contains(count) else { throw .invalidCount(count) }
         let stepCount = try resolvedSteps(steps)
         let extra = try checkedReferences(references, besides: 0)
+        let slotInputs = try personInputs(person, references: extra)
         let sent = PromptText.composed(text, allowText: allowText)
         var pictures: [GeneratedImage] = []
         for picture in SeedPlan.seeds(start: seed, count: count) {
-            let config = configuration(prompt: sent, seed: picture, startingImage: nil, strength: 1,
+            var config = configuration(prompt: sent, seed: picture, startingImage: nil, strength: 1,
                                        steps: stepCount, references: extra)
+            config.transformerInputs = slotInputs
             let (image, seconds) = try await run(config, progress: progress)
             pictures.append(GeneratedImage(image: image, seed: picture, model: model, prompt: text,
                                            promptSent: sent, edited: !extra.isEmpty, seconds: seconds))
@@ -177,6 +190,18 @@ public final class ImageGenerator: Sendable {
                 ? "Editing works on the square export only; this one is \(size.width)×\(size.height)"
                 : "This FLUX.2 Klein export has no editing parts (Transformer_img2img_full, VAEEncoder)")
         }
+    }
+
+    /// A person's matrices as the slot's inputs; none without a person.
+    private func personInputs(_ person: Person?, references: [CGImage]) throws(ImageGenerationError) -> [String: NDArray] {
+        guard let person else { return [:] }
+        guard let loraSlot else {
+            throw .personUnavailable("this export has no LoRA slot (\(LoRASlotLayout.fileName)), so it cannot draw \(person.name)")
+        }
+        guard references.isEmpty else {
+            throw .personUnavailable("a person is drawn by the text-to-image transformer, which takes no references")
+        }
+        return try SlotInputs.inputs(for: person, layout: loraSlot)
     }
 
     /// The references, checked against the limit and cropped square.

@@ -104,9 +104,13 @@ public struct ImageRecipe: Codable, Sendable, Equatable {
         /// Redraw small faces afterwards (`true`), or not (`false`); `nil`
         /// leaves it to the tool's default.
         public var fixFaces: Bool?
+        /// A trained person (``Person``) by name — the name, never the weights,
+        /// so the recipe stays small and replays only where that person is installed.
+        public var person: String?
 
         public init(model: String? = nil, aspect: String? = nil, seed: UInt32? = nil, steps: Int? = nil,
-                    count: Int? = nil, upscale: Int? = nil, strength: Double? = nil, fixFaces: Bool? = nil) {
+                    count: Int? = nil, upscale: Int? = nil, strength: Double? = nil, fixFaces: Bool? = nil,
+                    person: String? = nil) {
             self.model = model
             self.aspect = aspect
             self.seed = seed
@@ -115,11 +119,13 @@ public struct ImageRecipe: Codable, Sendable, Equatable {
             self.upscale = upscale
             self.strength = strength
             self.fixFaces = fixFaces
+            self.person = person
         }
 
         enum CodingKeys: String, CodingKey, CaseIterable {
             case model, aspect, seed, steps, count, upscale, strength
             case fixFaces = "fix_faces"
+            case person
         }
     }
 

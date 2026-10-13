@@ -225,6 +225,37 @@ photos, anything sexual or suggestive, anything with children, and brand, venue 
 The text lives in `Support/StyleText/` in a small line format (described in `StyleCatalog.swift`),
 so ~750 scenes stay reviewable as prose. A test fails the build on any line it cannot read.
 
+## People: a LoRA through the slot (0.10)
+
+```swift
+let layout = try LoRASlotLayout(contentsOf: fluxFolder.appendingPathComponent("slot.json"))
+let owl = try Person.importing(lora: try Data(contentsOf: loraURL), name: "owl",
+                               trigger: "zxq plush owl", layout: layout)
+try owl.write(to: personURL)                                   // 37 MB at rank 16
+
+let generator = try await ImageGenerator(bundle: fluxFolder)   // generator.loraSlot != nil
+let pictures = try await generator.generate("a photo of zxq plush owl, on a stack of old books",
+                                            seed: 11, person: try Person(contentsOf: personURL))
+```
+
+Core AI has no adapter API: a compiled asset's weights are fixed, so merging a LoRA would cost a
+7.2 GB re-export per person. Instead the FLUX.2 Klein 4B transformer is exported once with a **LoRA
+slot** (`coreai.diffusion.export … --lora-slot 16` in the
+[arraypress/coreai-models](https://github.com/arraypress/coreai-models) fork, 1.0.0-nonsquare.5):
+each of its 80 attention projections computes `W·x + B·(A·x)` with A and B as inputs, listed in the
+export's `slot.json`. A ``Person`` is a LoRA's matrices (F16, alpha/rank folded into B) plus its
+trigger, in a safetensors file; ``ImageGenerator/generate(_:seed:count:allowText:steps:references:person:progress:)``
+hands them to the slot, zero-padding a lower rank. With no person the slot gets zeros and the export
+computes **exactly** what the plain one does.
+
+Measured (M3 Max, rank 16): with zero matrices the transformer's output is bit-identical to the plain
+export's; a LoRA through the slot against the same LoRA merged in PyTorch fp16, relative L2 0.0024 —
+below the plain export's own conversion error against PyTorch (0.0039); about 2 % more time per step.
+`Person.importing` takes PEFT/diffusers names (`transformer.<layer>.lora_A.weight`) and bare
+`<layer>.lora_A`, and refuses — by name — layers the slot lacks, other shapes, a rank above the slot's,
+and kohya files. Text to image only: the editing transformer has no slot, so a person with references
+is refused. ``LoRASlotCheck`` loads a slot transformer and checks its inputs against `slot.json`.
+
 ## Testing
 
 `swift test` runs prompts, seeds, cropping, export recognition, provenance (PNG/JPEG/HEIC) and the
