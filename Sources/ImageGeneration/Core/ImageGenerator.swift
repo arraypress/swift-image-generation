@@ -42,9 +42,9 @@ public final class ImageGenerator: Sendable {
     /// The pictures' width and height, from the export.
     public let size: (width: Int, height: Int)
 
-    /// Whether ``edit(_:_:seed:strength:allowText:)`` can run: FLUX.2 Klein
-    /// with its editing parts (`Transformer_img2img_full`, `VAEEncoder`)
-    /// beside the rest.
+    /// Whether ``edit(_:_:seed:strength:allowText:steps:references:person:progress:)``
+    /// can run: FLUX.2 Klein with an editing function for this export's shape and a
+    /// `VAEEncoder` at that shape.
     public let supportsEditing: Bool
 
     /// The export's LoRA slot (`slot.json`), or `nil` for a plain export. With
@@ -87,8 +87,10 @@ public final class ImageGenerator: Sendable {
         self.bundle = bundle
         self.pipeline = pipeline
         self.size = pipeline.defaultImageSize
-        // Editing works on a square export only: FLUX's reference tokens are traced square.
-        self.supportsEditing = model.supportsEditing && pipeline.supportsImageToImage && !pipeline.isNonSquare
+        // A single-shape export edits when it has an img2img transformer beside it; a
+        // multi-shape export's folder names its own editing function.
+        self.supportsEditing = model.supportsEditing && pipeline.supportsImageToImage
+            && pipeline.img2imgRoutes[.full] != nil
         self.loraSlot = try LoRASlotLayout.inBundle(bundle)
         self.defaults = Defaults(
             steps: config.defaultSteps ?? DiffusionDefaults.Runner.steps,
@@ -112,10 +114,10 @@ public final class ImageGenerator: Sendable {
     ///     export's own default (FLUX 4, SANA 2) when `nil`.
     ///   - references: Pictures to draw from — a face, a product, a style —
     ///     up to ``maximumReferences``; FLUX.2 Klein 4B only. Each is cropped to
-    ///     its centred square.
+    ///     the centre at this export's shape.
     ///   - person: Someone a LoRA has learned, drawn through the export's
-    ///     ``loraSlot`` — put their ``Person/trigger`` in the prompt. Text to
-    ///     image only: the slot is in the text-to-image transformer.
+    ///     ``loraSlot`` — put their ``Person/trigger`` in the prompt. With
+    ///     references only when the slot ``LoRASlotLayout/coversEditing``.
     ///   - progress: Called after each denoising step with (step, steps).
     /// - Returns: The pictures, in seed order, at the export's ``size``.
     /// - Throws: ``ImageGenerationError``; `.cancelled` when the task is;
@@ -127,7 +129,7 @@ public final class ImageGenerator: Sendable {
         guard (1...Self.maximumCount).contains(count) else { throw .invalidCount(count) }
         let stepCount = try resolvedSteps(steps)
         let extra = try checkedReferences(references, besides: 0)
-        let slotInputs = try personInputs(person, references: extra)
+        let slotInputs = try personInputs(person, editing: !extra.isEmpty)
         let sent = PromptText.composed(text, allowText: allowText)
         var pictures: [GeneratedImage] = []
         for picture in SeedPlan.seeds(start: seed, count: count) {
@@ -143,8 +145,10 @@ public final class ImageGenerator: Sendable {
 
     /// Changes a picture as `instruction` says — FLUX.2 Klein only.
     ///
-    /// The source is cropped to its centred square first (the model works on
-    /// a 1024 square and would otherwise stretch it).
+    /// The source is trimmed to this export's shape around its centre first (the
+    /// model works at a fixed size and would otherwise stretch it); load the export
+    /// whose shape is nearest the source's (``ImageAspect/nearest(width:height:among:)``)
+    /// and the trim is a sliver — ``trim(of:)`` says how much.
     ///
     /// - Parameters:
     ///   - image: The picture to change.
@@ -158,24 +162,35 @@ public final class ImageGenerator: Sendable {
     ///   - steps: As for ``generate(_:seed:count:allowText:steps:references:progress:)``.
     ///   - references: Further pictures to draw from, after `image`; together
     ///     at most ``maximumReferences``.
+    ///   - person: Someone a LoRA has learned, drawn into the edit — the export's
+    ///     slot must ``LoRASlotLayout/coversEditing``.
     ///   - progress: As for ``generate(_:seed:count:allowText:steps:references:progress:)``.
     /// - Throws: ``ImageGenerationError``; `.editingUnavailable` for SANA or
     ///   when the editing parts are not installed.
     public func edit(_ image: CGImage, _ instruction: String, seed: UInt32? = nil, strength: Float = 1,
-                     allowText: Bool = false, steps: Int? = nil, references: [CGImage] = [],
+                     allowText: Bool = false, steps: Int? = nil, references: [CGImage] = [], person: Person? = nil,
                      progress: (@Sendable (Int, Int) -> Void)? = nil) async throws(ImageGenerationError) -> GeneratedImage {
         try requireEditing()
         let extra = try checkedReferences(references, besides: 1)
+        let slotInputs = try personInputs(person, editing: true)
         guard strength > 0, strength <= 1 else { throw .invalidPrompt("Strength is more than 0 and at most 1") }
         let text = try PromptText.validated(instruction)
         let stepCount = try resolvedSteps(steps)
         let sent = PromptText.composed(text, allowText: allowText)
         let picture = SeedPlan.seeds(start: seed, count: 1)[0]
-        let config = configuration(prompt: sent, seed: picture, startingImage: SquareCrop.centred(image),
+        var config = configuration(prompt: sent, seed: picture,
+                                   startingImage: AspectMath.centred(image, width: size.width, height: size.height),
                                    strength: strength, steps: stepCount, references: extra)
+        config.transformerInputs = slotInputs
         let (result, seconds) = try await run(config, progress: progress)
         return GeneratedImage(image: result, seed: picture, model: model, prompt: text,
                               promptSent: sent, edited: true, seconds: seconds)
+    }
+
+    /// How much of `image` an edit at this export's shape trims away around the
+    /// centre, 0…1 — 0 when the shapes match.
+    public func trim(of image: CGImage) -> Double {
+        AspectMath.trimmed(width: image.width, height: image.height, targetWidth: size.width, targetHeight: size.height)
     }
 
     // MARK: - Plumbing
@@ -186,20 +201,21 @@ public final class ImageGenerator: Sendable {
             throw .editingUnavailable("\(model.displayName) cannot edit pictures; FLUX.2 Klein 4B can")
         }
         guard supportsEditing else {
-            throw .editingUnavailable(size.width != size.height
-                ? "Editing works on the square export only; this one is \(size.width)×\(size.height)"
-                : "This FLUX.2 Klein export has no editing parts (Transformer_img2img_full, VAEEncoder)")
+            throw .editingUnavailable("This FLUX.2 Klein export has no editing parts for \(size.width)×\(size.height) "
+                                      + "(an img2img transformer function and a VAEEncoder)")
         }
     }
 
     /// A person's matrices as the slot's inputs; none without a person.
-    private func personInputs(_ person: Person?, references: [CGImage]) throws(ImageGenerationError) -> [String: NDArray] {
+    private func personInputs(_ person: Person?, editing: Bool) throws(ImageGenerationError) -> [String: NDArray] {
         guard let person else { return [:] }
         guard let loraSlot else {
             throw .personUnavailable("this export has no LoRA slot (\(LoRASlotLayout.fileName)), so it cannot draw \(person.name)")
         }
-        guard references.isEmpty else {
-            throw .personUnavailable("a person is drawn by the text-to-image transformer, which takes no references")
+        // A slot export from before multi-shape carries the slot in text to image
+        // only; its editing transformer would silently ignore the person.
+        guard !editing || loraSlot.coversEditing else {
+            throw .personUnavailable("this export's editing transformer has no LoRA slot, so \(person.name) cannot go into an edit")
         }
         return try SlotInputs.inputs(for: person, layout: loraSlot)
     }
@@ -211,7 +227,7 @@ public final class ImageGenerator: Sendable {
         guard references.count + others <= Self.maximumReferences else {
             throw .tooManyReferences(references.count + others)
         }
-        return references.map(SquareCrop.centred)
+        return references.map { AspectMath.centred($0, width: size.width, height: size.height) }
     }
 
     /// The step count to run: the caller's, checked, or the export's default.

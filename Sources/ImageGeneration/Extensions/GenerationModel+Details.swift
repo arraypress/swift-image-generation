@@ -40,8 +40,21 @@ public extension GenerationModel {
     /// up to 28, where an undistilled FLUX would stop.
     var stepRange: ClosedRange<Int> { self == .sanaSprint16B ? 1...4 : 1...28 }
 
-    /// The shapes this library's exports come in: 9B is square only.
-    var aspects: [ImageAspect] { self == .flux2Klein9B ? [.square] : ImageAspect.allCases }
+    /// The shapes this library's exports draw from text in: Klein 4B six (no
+    /// upright 3:4 or 2:3), SANA four, 9B the square only.
+    var aspects: [ImageAspect] {
+        switch self {
+        case .flux2Klein4B: [.square, .landscape, .vertical, .portrait, .classic, .photo]
+        case .sanaSprint16B: [.square, .landscape, .vertical, .portrait]
+        case .flux2Klein9B: [.square]
+        }
+    }
+
+    /// The shapes this library's exports edit in: Klein 4B seven — the shapes
+    /// photos come in (no 4:5) — and the others none.
+    var editAspects: [ImageAspect] {
+        self == .flux2Klein4B ? [.square, .landscape, .vertical, .classic, .classicTall, .photo, .photoTall] : []
+    }
 
     /// Whether to load the model's parts one at a time (`lowMemory`) on a Mac
     /// with this much memory. Measured for 9B on 36 GB: one at a time took a

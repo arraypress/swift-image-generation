@@ -43,22 +43,28 @@ and [arraypress/imagine-sana-sprint-1.6b](https://huggingface.co/arraypress/imag
 with their licences and notices. This library takes the export folder; fetching it is the caller's
 job (the `imagine` CLI does it on first use).
 
-- **Four shapes: 1:1 (1024 × 1024), 16:9 (1344 × 768), 9:16 (768 × 1344) and 4:5 (896 × 1120).**
-  `ImageAspect` names them; each non-square export is its own folder (`aspect-16x9/`, `aspect-9x16/`,
-  `aspect-4x5/`) beside the square one, sharing its text encoder, and
-  `ImageGenerator(bundle:)` loads either — `size` says which. Measured before choosing that layout: a
-  transformer holding both shapes as two functions shares one 7.2 GB weight copy on disk, but Core AI
-  compiles every function at first load and keeps a full compiled copy of each (14 GB), so everyone
-  would pay for every shape; a folder per shape costs only whoever uses it — FLUX 7.3 GB, SANA 3.3 GB
-  of download and about as much compiled cache, per shape. 9:16 and 4:5 (0.5.0) were exported with
-  `COREAI_IMAGE_HW` from the fork's `1.0.0-nonsquare.3`; same seed, byte-identical output, measured.
-  Editing is 1:1 only.
+- **Eight shapes** (0.11): 1:1 (1024 × 1024), 16:9 (1344 × 768), 9:16 (768 × 1344), 4:5
+  (896 × 1120), 4:3 (1152 × 864), 3:4, 3:2 (1248 × 832) and 2:3. `ImageAspect` names them;
+  `GenerationModel.aspects` says which a model draws (FLUX 4B: 1:1, 16:9, 9:16, 4:5, 4:3, 3:2; SANA the
+  first four; 9B 1:1) and `editAspects` which it edits (FLUX 4B: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3).
+  `ImageAspect.nearest(width:height:among:)` picks the shape nearest a photo's. FLUX's shapes live in
+  `shapes/<shape>/` folders (`shapeFolder`): `metadata.json`, the autoencoder, and a transformer per
+  mode, each a single-function export with the LoRA slot; SANA's in `aspect-16x9/` and the like.
+  `ImageGenerator(bundle:)` loads any of them — `size` says which. **Measured before choosing that
+  layout, twice:** one transformer asset holding several shapes as functions stores its weights once
+  (7.2 GB for sixteen functions), but Core AI compiles EVERY function of an asset when it loads it
+  and keeps a full compiled copy of each — 14 GB for two, 116 GB for sixteen — so everyone would pay
+  for every shape; one function per asset costs only whoever uses it (7.2 GB download and about as
+  much compiled cache per FLUX shape and mode, 3.3 GB per SANA shape).
 - **A fork of Apple's pipeline, for the non-square shapes.** Apple's `FlowTransformerPipeline` assumes a square image
   (one `spatialSide` for the token grid and the decode). This depends on
   [arraypress/coreai-models](https://github.com/arraypress/coreai-models) `1.0.0-nonsquare.2`: Apple's
   1.0.0 plus a 45-line change reading `image_width`/`image_height` from an export's metadata, and
   (`.2`) an ~80-line one taking several reference pictures. Square output is pixel-identical to
-  Apple's pipeline (measured, both models); Apple's diffusion tests pass.
+  Apple's pipeline (measured, both models); Apple's diffusion tests pass. `1.0.0-nonsquare.6` edits
+  at a non-square shape (the reference encoded at the export's own grid) and lets `metadata.json`
+  name an asset outside its folder; `.7` exports one slot function per asset at any shape, and loads
+  a folder holding only an editing transformer.
 - **Deterministic.** The same model, prompt and seed make the same picture, byte for byte. A run
   of *n* uses seeds `seed…seed+n−1`, so any picture can be remade alone from its seed.
 - **No text by default.** Both models misspell anything longer than a short word and invent
@@ -66,8 +72,11 @@ job (the `imagine` CLI does it on first use).
   "SOIN SOON PACK"). Neither takes a negative prompt, so `generate` appends *"no text, no letters,
   no typography"* — measured, that removed the invented lettering — unless `allowText: true`.
   Draw real text afterwards with proper type.
-- **Editing** is FLUX only, and needs `Transformer_img2img_full.aimodel` and `VAEEncoder.aimodel`
-  beside the rest (`supportsEditing`). The source is cropped to its centred square first.
+- **Editing** is FLUX only, and needs an editing transformer (`Transformer_img2img_full.aimodel`) and
+  a `VAEEncoder.aimodel` for the export's shape (`supportsEditing`); since 0.11 at any shape in
+  `editAspects`, not only 1:1. The source (and each reference) is trimmed around its centre to the
+  export's shape; `trim(of:)` says how much (0 when the shapes match). Load the shape nearest the
+  photo's and the trim is a sliver.
 - **Strength** (0.9) is how far an edit may move from the source, 0…1, default 1. At 1 FLUX redraws
   from pure noise with the source only as a reference (what every edit did before 0.9). Below 1 it
   starts from the source itself blended with noise (fork `1.0.0-nonsquare.4`: a re-spaced schedule
@@ -253,8 +262,11 @@ export's; a LoRA through the slot against the same LoRA merged in PyTorch fp16, 
 below the plain export's own conversion error against PyTorch (0.0039); about 2 % more time per step.
 `Person.importing` takes PEFT/diffusers names (`transformer.<layer>.lora_A.weight`) and bare
 `<layer>.lora_A`, and refuses — by name — layers the slot lacks, other shapes, a rank above the slot's,
-and kohya files. Text to image only: the editing transformer has no slot, so a person with references
-is refused. ``LoRASlotCheck`` loads a slot transformer and checks its inputs against `slot.json`.
+and kohya files. Since 0.11 every FLUX transformer carries the slot, editing ones too (their
+`slot.json` says `"img2img": true`, ``LoRASlotLayout/coversEditing``): `edit(…person:)`, a masked edit
+and the face fix (`fixFaces(…person:)`) take a person. An older export whose editing transformer has
+no slot refuses a person with references, by name. ``LoRASlotCheck`` loads a slot transformer and
+checks its inputs against `slot.json`.
 
 ## Testing
 
@@ -267,7 +279,7 @@ beside the SANA export) that 16:9 comes out 1344 × 768 and deterministic.
 ## Requirements
 
 macOS 27 / iOS 27 (Core AI), Swift 6.2. `coreai-models` — the arraypress fork of Apple's 1.0.0 (see
-above), pinned exactly to `1.0.0-nonsquare.4` (strength).
+above), pinned exactly to `1.0.0-nonsquare.7` (every shape, editing at any shape).
 
 ## Licence
 

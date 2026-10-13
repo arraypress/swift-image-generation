@@ -78,14 +78,14 @@ public extension ImageGenerator {
     /// - Returns: The result at `image`'s size, with the report and plan.
     func edit(_ image: CGImage, _ instruction: String, within masks: [RegionMask], seed: UInt32? = nil,
               strength: Float = 1, allowText: Bool = false, steps: Int? = nil,
-              references: [CGImage] = [],
+              references: [CGImage] = [], person: Person? = nil,
               enlarge: (@Sendable (CGImage, Int) async throws -> CGImage)? = nil,
               progress: (@Sendable (Int, Int) -> Void)? = nil)
         async throws(ImageGenerationError) -> (picture: GeneratedImage, report: MaskedEditReport, plan: MaskedEditPlan) {
         let plan = try MaskedEdit.plan(masks, imageWidth: image.width, imageHeight: image.height)
         let square = try MaskedEdit.source(image, plan: plan, size: size.width)
         let made = try await edit(square, instruction, seed: seed, strength: strength, allowText: allowText,
-                                  steps: steps, references: references, progress: progress)
+                                  steps: steps, references: references, person: person, progress: progress)
         var back = made.image
         if plan.side > back.width, let enlarge {
             do { back = try await enlarge(made.image, plan.side) } catch {

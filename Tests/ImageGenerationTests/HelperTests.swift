@@ -50,13 +50,30 @@ struct SeedTests {
 @Suite("Cropping and exports")
 struct CropAndBundleTests {
 
-    @Test("A wide picture is cut to its centred square; a square one is untouched")
+    @Test("A picture is trimmed around its centre to a shape; a matching one is untouched")
     func crop() throws {
         let wide = try #require(Fixture.image(width: 300, height: 200))
-        let square = SquareCrop.centred(wide)
+        let square = AspectMath.centred(wide, width: 1024, height: 1024)
         #expect(square.width == 200 && square.height == 200)
         let same = try #require(Fixture.image(width: 64, height: 64))
-        #expect(SquareCrop.centred(same) === same)
+        #expect(AspectMath.centred(same, width: 1024, height: 1024) === same)
+        // A 4:3 phone photo fits 4:3 exactly; to 1:1 it loses a quarter.
+        let phone = try #require(Fixture.image(width: 400, height: 300))
+        #expect(AspectMath.centred(phone, width: 1152, height: 864) === phone)
+        #expect(AspectMath.trimmed(width: 400, height: 300, targetWidth: 1152, targetHeight: 864) == 0)
+        #expect(abs(AspectMath.trimmed(width: 400, height: 300, targetWidth: 1024, targetHeight: 1024) - 0.25) < 1e-9)
+    }
+
+    @Test("The nearest shape goes by the ratio's logarithm, among the model's shapes")
+    func nearest() {
+        #expect(ImageAspect.nearest(width: 4032, height: 3024) == .classic)
+        #expect(ImageAspect.nearest(width: 3024, height: 4032) == .classicTall)
+        #expect(ImageAspect.nearest(width: 6000, height: 4000) == .photo)
+        #expect(ImageAspect.nearest(width: 1080, height: 1920) == .vertical)
+        #expect(ImageAspect.nearest(width: 1920, height: 1080) == .landscape)
+        #expect(ImageAspect.nearest(width: 1000, height: 1010) == .square)
+        // SANA has four shapes: a 4:3 photo goes to the nearest of those (16:9, by the log ratio).
+        #expect(ImageAspect.nearest(width: 4032, height: 3024, among: GenerationModel.sanaSprint16B.aspects) == .landscape)
     }
 
     @Test("An export is recognised from its metadata.json, and anything else refused")
@@ -81,7 +98,10 @@ struct CropAndBundleTests {
         #expect(GenerationModel.flux2Klein4B.supportsEditing)
         #expect(!GenerationModel.sanaSprint16B.supportsEditing)
         #expect(!GenerationModel.flux2Klein9B.supportsEditing)
-        #expect(GenerationModel.flux2Klein4B.aspects == [.square, .landscape, .vertical, .portrait])
+        #expect(GenerationModel.flux2Klein4B.aspects == [.square, .landscape, .vertical, .portrait, .classic, .photo])
+        #expect(GenerationModel.flux2Klein4B.editAspects == [.square, .landscape, .vertical, .classic, .classicTall, .photo, .photoTall])
+        #expect(GenerationModel.sanaSprint16B.editAspects.isEmpty && GenerationModel.flux2Klein9B.editAspects.isEmpty)
+        #expect(ImageAspect.allCases.count == 8)
         #expect(GenerationModel.sanaSprint16B.aspects == [.square, .landscape, .vertical, .portrait])
         #expect(GenerationModel.flux2Klein9B.aspects == [.square])
         #expect(GenerationModel.allCases.filter(\.isNonCommercial) == [.flux2Klein9B])
@@ -104,6 +124,10 @@ struct CropAndBundleTests {
         #expect(ImageAspect(rawValue: "4:5") == .portrait)
         #expect(ImageAspect.vertical.size == (768, 1344) && ImageAspect.portrait.size == (896, 1120))
         #expect(ImageAspect.vertical.subfolder == "aspect-9x16" && ImageAspect.portrait.subfolder == "aspect-4x5")
+        #expect(ImageAspect.classic.size == (1152, 864) && ImageAspect.photo.size == (1248, 832))
+        #expect(ImageAspect.classic.subfolder == nil, "SANA has no 4:3")
+        #expect(ImageAspect.classic.shapeFolder == "shapes/4x3" && ImageAspect.square.shapeFolder == "shapes/1x1")
+        #expect(ImageAspect.photoTall.shapeFolder == "shapes/2x3" && ImageAspect.vertical.shapeFolder == "shapes/9x16")
         // Every shape is a multiple of 32, which both models need.
         for aspect in ImageAspect.allCases {
             #expect(aspect.size.width % 32 == 0 && aspect.size.height % 32 == 0)

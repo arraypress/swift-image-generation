@@ -113,7 +113,7 @@ struct RecipeTests {
     @Test("Unknown paths and bad values are refused")
     func setRefused() {
         for (path, value) in [("settings.colour", "red"), ("lightning", "dusk"), ("seed", "seven"), ("seed", "-1"),
-                              ("steps", "4.5"), ("model", "flux"), ("aspect", "4:3"), ("avoid_text", "maybe"),
+                              ("steps", "4.5"), ("model", "flux"), ("aspect", "5:4"), ("avoid_text", "maybe"),
                               ("strength", "nan"), ("details", "[1, 2]"), ("provenance.tool", "x"), ("imagine", "2")] {
             #expect(throws: ImageGenerationError.self, "\(path)=\(value)") { try Self.full.setting(path, to: value) }
         }

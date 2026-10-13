@@ -43,8 +43,26 @@ public struct LoRASlotLayout: Codable, Sendable, Equatable {
     /// The wrapped layers, in the order their inputs are numbered.
     public let layers: [Layer]
 
-    public init(rank: Int, layers: [Layer]) {
+    /// Whether the editing functions carry the slot too (`"img2img": true`), so
+    /// a person can be drawn into an edit; `false` for the text-to-image-only slot.
+    public let coversEditing: Bool
+
+    public init(rank: Int, layers: [Layer], coversEditing: Bool = false) {
         self.rank = rank
         self.layers = layers
+        self.coversEditing = coversEditing
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case rank
+        case layers
+        case coversEditing = "img2img"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        rank = try c.decode(Int.self, forKey: .rank)
+        layers = try c.decode([Layer].self, forKey: .layers)
+        coversEditing = try c.decodeIfPresent(Bool.self, forKey: .coversEditing) ?? false
     }
 }

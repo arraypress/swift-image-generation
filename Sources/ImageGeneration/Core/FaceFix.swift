@@ -46,11 +46,13 @@ public extension ImageGenerator {
     ///   - references: The pictures the original was drawn from (a face to
     ///     keep, up to three): the redraw sees them too, so it redraws that
     ///     person rather than inventing one.
+    ///   - person: A trained person the picture was drawn with: the redraw loads
+    ///     them through the editing slot, so their face is redrawn as theirs.
     ///   - progress: Called after each denoising step with (face, faces, step, steps).
     /// - Returns: The picture and a report per small face found; the picture
     ///   unchanged and no report when there is none.
     func fixFaces(in image: CGImage, prompt: String, seed: UInt32, options: FaceFixOptions = .standard,
-                  references: [CGImage] = [], allowText: Bool = false,
+                  references: [CGImage] = [], person: Person? = nil, allowText: Bool = false,
                   progress: (@Sendable (Int, Int, Int, Int) -> Void)? = nil)
         async throws(ImageGenerationError) -> FaceFixResult {
         let width = image.width, height = image.height
@@ -66,7 +68,7 @@ public extension ImageGenerator {
             // Below 1 the redraw starts from the face itself, so it keeps more
             // of who it was; at 1 the instruction alone keeps the composition.
             let made = try await edit(square, instruction, seed: seed, strength: options.strength, allowText: allowText,
-                                      references: references) { step, steps in
+                                      references: references, person: person) { step, steps in
                 progress?(index + 1, small.count, step, steps)
             }
             let (candidate, report) = try MaskedEdit.composite(original: current, edited: made.image,

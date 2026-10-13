@@ -150,4 +150,14 @@ struct PersonTests {
         #expect(recipe.settings.person == "owl")
         #expect(throws: ImageGenerationError.self) { try recipe.setting("person", to: "../etc") }
     }
+
+    @Test("slot.json says whether editing carries the slot; older layouts do not")
+    func coversEditing() throws {
+        let old = try JSONDecoder().decode(LoRASlotLayout.self, from: Data(#"{"rank":4,"layers":[]}"#.utf8))
+        #expect(!old.coversEditing)
+        let shapes = try JSONDecoder().decode(LoRASlotLayout.self,
+                                              from: Data(#"{"rank":4,"layers":[],"img2img":true,"functions":["main"]}"#.utf8))
+        #expect(shapes.coversEditing)
+        #expect(old.identifier == shapes.identifier, "the same layers: a person fits both")
+    }
 }
