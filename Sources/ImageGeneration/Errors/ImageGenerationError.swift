@@ -56,6 +56,9 @@ public enum ImageGenerationError: Error, LocalizedError, Sendable, Equatable {
     /// A person asked for where the export or the run cannot take one.
     case personUnavailable(String)
 
+    /// A value for a slot the style does not have, or an empty one.
+    case invalidStyleValue(String)
+
     public var errorDescription: String? {
         switch self {
         case .notABundle(let path): "\(path) is not a Core AI image-generation export"
@@ -76,6 +79,7 @@ public enum ImageGenerationError: Error, LocalizedError, Sendable, Equatable {
         case .invalidRecipe(let why): why
         case .invalidPerson(let why): why
         case .personUnavailable(let why): why
+        case .invalidStyleValue(let why): why
         }
     }
 }

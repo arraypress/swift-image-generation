@@ -69,6 +69,18 @@ struct RecipeTests {
         #expect(small.composedPrompt == "a fox" && small.settings == .init() && small.inputs == nil)
     }
 
+    @Test("A styled recipe records its style, scene and slot values, and they round-trip")
+    func styleProvenance() throws {
+        var recipe = Self.full
+        recipe.provenance = .init(tool: "imagine 0.14.0", style: "japandi", scene: 2, vars: ["room": "kitchen"])
+        let data = try recipe.encoded()
+        #expect(String(decoding: data, as: UTF8.self).contains(#""vars" : {"#))
+        #expect(try ImageRecipe.decode(data) == recipe)
+        // Old recipes without them still read.
+        let old = #"{"imagine": 1, "prompt": {"text": "a fox"}, "provenance": {"tool": "imagine 0.6.0"}}"#
+        #expect(try ImageRecipe.decode(Data(old.utf8)).provenance?.vars == nil)
+    }
+
     @Test("Unknown keys, newer formats and wrong types are refused, naming the field")
     func strict() {
         let cases: [(String, String)] = [

@@ -163,15 +163,29 @@ public struct ImageRecipe: Codable, Sendable, Equatable {
         public var tool: String?
         /// The model export's pinned revision (a Hugging Face commit).
         public var modelRevision: String?
+        /// The built-in style the prompt was written from (``ImageStyle``).
+        /// The prompt itself holds the scene in full, so a replay never
+        /// needs the style; this says where it came from.
+        public var style: String?
+        /// The style's scene, one-based.
+        public var scene: Int?
+        /// Every slot's value when the prompt was written — the caller's or
+        /// the default — keyed by slot name: `{"room": "kitchen"}`.
+        public var vars: [String: String]?
 
-        public init(tool: String? = nil, modelRevision: String? = nil) {
+        public init(tool: String? = nil, modelRevision: String? = nil, style: String? = nil, scene: Int? = nil,
+                    vars: [String: String]? = nil) {
             self.tool = tool
             self.modelRevision = modelRevision
+            self.style = style
+            self.scene = scene
+            self.vars = vars
         }
 
         enum CodingKeys: String, CodingKey, CaseIterable {
             case tool
             case modelRevision = "model_revision"
+            case style, scene, vars
         }
     }
 

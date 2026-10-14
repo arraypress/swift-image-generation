@@ -191,9 +191,9 @@ identical `promptSent`. `avoid_text` left out means the model's default: FLUX.2 
 the others are told not to. Reading is strict on purpose: `JSONDecoder` ignores keys it does not
 know, so a misspelt `"lightning"` would otherwise vanish and the picture would quietly differ.
 
-## Styles (0.7)
+## Styles (0.7; slots and interiors 0.12)
 
-116 built-in styles in 12 categories — 742 scenes — as Swift data (`ImageStyle.all`), not a
+173 built-in styles in 13 categories — 1,084 scenes — as Swift data (`ImageStyle.all`), not a
 resource bundle, so they travel with a binary however it is installed. A style is a look with
 several scenes: `hard-flash` is seven different shots that share a flash and a lens, not one prompt.
 A scene becomes `ImageRecipe.Prompt` parts around a subject, so a picture made from a style saves as
@@ -220,19 +220,65 @@ ImageRecipe(prompt: prompt).composedPrompt
 | fantasy | 15 — fairy tale, tarot, chibi, anime, pixel art, action figure, character sheet… |
 | art | 4 — fine-art portrait, tattoo, album cover, reaction face |
 | food | 1 — food photography (the subject is the dish) |
+| interiors | 57 — modern, Japandi, Scandinavian, mid-century, art deco, industrial, farmhouse, baroque, Christmas, sketch… (a `{room}` slot) |
 
 `wear` picks a cut of each scene's clothes: `.neutral` (the default, wording that assumes nothing),
 `.feminine` or `.masculine` where a scene has one — otherwise the neutral wording — or `.none` for a
 subject that wears nothing, a pet or a dish. Nothing about gender is required.
 
 **Where the wording comes from.** The ideas surveyed a commercial style catalogue; every scene was
-written here. Measured 2026-10-13: across all 742 scenes in every wardrobe cut, composed as sent,
+written here. Measured 2026-10-13: across all 742 scenes of the first 116 styles in every wardrobe cut, composed as sent,
 **no run of six words** is shared with any of that catalogue's 1,978 prompts (65,259 six-word runs,
 case and punctuation ignored). Left out on purpose: celebrity look-alikes, mugshots, protests, ID
 photos, anything sexual or suggestive, anything with children, and brand, venue and event names.
 
 The text lives in `Support/StyleText/` in a small line format (described in `StyleCatalog.swift`),
-so ~750 scenes stay reviewable as prose. A test fails the build on any line it cannot read.
+so ~1,100 scenes stay reviewable as prose. A test fails the build on any line it cannot read.
+
+### Slots
+
+A style may declare **slots** — named gaps, `{room}`, in any field of its scenes — so one style
+serves many variations without a style each. A slot has a default (the first value it lists) and
+the values it knows; a known value may stand for a fuller phrase, and any other value goes in as
+typed. Generic: nothing in the library knows what a room is.
+
+```swift
+let style = ImageStyle.named("japandi")!
+style.slots.map(\.name)                                    // ["room"]
+let values = try style.slotValues(["room": "kitchen"])     // checked, defaults filled: ["room": "kitchen"]
+let prompt = style.prompt(scene: 0, subject: "", vars: values)
+ImageRecipe(prompt: prompt).composedPrompt                 // "a kitchen with fitted cabinets, …, Japandi interior design, …"
+try style.slotValues(["colour": "red"])                    // throws .invalidStyleValue("japandi has no slot \"colour\"; its slots: room")
+style.slot(named: "room")?.text(for: "Walk-In Closet")     // the known phrase; case, hyphens, spacing ignored
+```
+
+In the line format a slot is declared before the scenes —
+`slot: room = living room => a living room with …; kitchen => a kitchen with …; attic` — and
+the parser reports any `{marker}` that is not declared, any declared slot no scene uses, and
+`{subject}` anywhere but `who:`. A scene whose `who:` leads with a slot rather than `{subject}`
+(`who: {room}`) has no default subject: a subject given to it becomes its first detail
+("with a green island"). `StyleCategory.interiors.featuresPeople` is false, so no face fix.
+`ImageRecipe.Provenance` gained `style`, `scene` and `vars`, so a recipe made from a style says
+where its (fully written-out) prompt came from.
+
+### Interiors
+
+57 interior design styles × 66 rooms and spaces × 6 views (from the entrance, from a corner, the
+main wall straight on, from the far end, a closer look at the furniture, a raised view of the
+layout). The style says what makes the look — palette, materials, signature furniture, light; the
+room phrase says what is in the space; the view sets the lens. Composed prompts run 333–543
+characters.
+
+**Where the wording comes from.** The style and room lists follow a commercial interior-design
+site (56 styles, 68 room types); every word of each style and room was written here. Renamed: the
+rental-platform style (`guest-ready`), "gaming room" as a style (`gaming-den`), "tribal"
+(`global-artisan`), and five names a people style already had (`-interior`), with Chinese New
+Year as `lunar-new-year-interior`; Japandi added; two adult room types left out; no brand or film
+names. **Measured 2026-10-14:** all 22,572 composed prompts (57 × 66 × 6), and the Swift source
+itself, share **no run of six words** with anything fetched from the site — 966 published design
+prompts from 1,068 design pages, the 56 style pages and the home page (40,689 six-word runs, case
+and punctuation ignored). That text and the gate script stay outside the repository; the wording
+test here runs the same check, over every room, against made-up phrases.
 
 ## People: a LoRA through the slot (0.10)
 

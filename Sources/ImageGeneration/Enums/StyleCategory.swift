@@ -21,4 +21,6 @@ public enum StyleCategory: String, Codable, Sendable, CaseIterable {
     case fantasy
     case art
     case food
+    /// Rooms and spaces: a design style with a `{room}` slot.
+    case interiors
 }

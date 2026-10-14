@@ -11,6 +11,9 @@
 //  (``ImageStyle/all``), not a resource bundle: a bundle beside a Homebrew
 //  binary breaks when the binary is reached through a symlink.
 //
+//  A style may have slots (``StyleSlot``): `{room}` in its scenes, filled
+//  by the caller or by the slot's default.
+//
 
 import Foundation
 
@@ -29,20 +32,41 @@ public struct ImageStyle: Codable, Sendable, Equatable, Identifiable {
     /// The shots; a seed picks one, so the same seed picks the same one.
     public let scenes: [StyleScene]
 
+    /// Gaps in the scenes a caller may fill — `{room}` — each with a
+    /// default; empty for most styles.
+    public let slots: [StyleSlot]
+
     public var id: String { name }
 
-    public init(name: String, title: String, category: StyleCategory, scenes: [StyleScene]) {
+    public init(name: String, title: String, category: StyleCategory, scenes: [StyleScene], slots: [StyleSlot] = []) {
         self.name = name
         self.title = title
         self.category = category
         self.scenes = scenes
+        self.slots = slots
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name, title, category, scenes, slots
+    }
+
+    /// `slots` may be left out: a style written before slots has none.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        title = try container.decode(String.self, forKey: .title)
+        category = try container.decode(StyleCategory.self, forKey: .category)
+        scenes = try container.decode([StyleScene].self, forKey: .scenes)
+        slots = try container.decodeIfPresent([StyleSlot].self, forKey: .slots) ?? []
     }
 }
 
 /// One shot in a style, as prompt parts around a subject.
 public struct StyleScene: Codable, Sendable, Equatable {
 
-    /// Where the subject goes: `{subject} stepping off a tram`. Usually just `{subject}`.
+    /// Where the subject goes: `{subject} stepping off a tram`. Usually just
+    /// `{subject}`; a style with slots may lead with one instead (`{room}`),
+    /// and then a subject, when given, joins the details.
     public let who: String
 
     /// Where: "on a rain-soaked street at night".

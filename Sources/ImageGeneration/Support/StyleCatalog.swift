@@ -25,6 +25,12 @@
 //  neutral / feminine / masculine, the last two optional. Detail lists are
 //  separated by semicolons, because the details themselves use commas.
 //
+//  A style may declare slots before its scenes — `slot: room = living room;
+//  kitchen => a kitchen with …` (see StyleSlots.swift) — and use `{room}` in
+//  any scene field. A scene's `who` then may lead with a slot instead of
+//  `{subject}`; a subject given to such a scene joins its details. Every
+//  marker must be declared, and every declared slot used.
+//
 
 import Foundation
 
@@ -57,14 +63,21 @@ enum StyleCatalog {
         var header: (name: String, title: String, category: StyleCategory)?
         var shared: [String: String] = [:]
         var scenes: [StyleScene] = []
+        var slots: [StyleSlot] = []
 
         func close() {
             guard let open = header else { return }
             if scenes.isEmpty { result.problems.append("\(open.name): no scenes") }
-            result.styles.append(ImageStyle(name: open.name, title: open.title, category: open.category, scenes: scenes))
+            let used = Set(scenes.flatMap(markers))
+            for slot in slots where !used.contains(slot.name) {
+                result.problems.append("\(open.name): slot \(slot.name) is in no scene")
+            }
+            result.styles.append(ImageStyle(name: open.name, title: open.title, category: open.category, scenes: scenes,
+                                            slots: slots))
             header = nil
             shared = [:]
             scenes = []
+            slots = []
         }
 
         for raw in text.split(separator: "\n", omittingEmptySubsequences: true) {
@@ -83,8 +96,16 @@ enum StyleCatalog {
                     result.problems.append("a scene outside a style: \(line)")
                     continue
                 }
-                switch scene(String(line.dropFirst(2)), shared: shared) {
+                switch scene(String(line.dropFirst(2)), shared: shared, slots: slots.map(\.name)) {
                 case .success(let scene): scenes.append(scene)
+                case .failure(let problem): result.problems.append("\(open.name): \(problem.reason)")
+                }
+            } else if let (key, value) = keyed(line), key == "slot", let open = header {
+                switch StyleSlots.parse(value) {
+                case .success(let slot) where !slots.contains(where: { $0.name == slot.name }) && scenes.isEmpty:
+                    slots.append(slot)
+                case .success(let slot):
+                    result.problems.append("\(open.name): slot \(slot.name) comes twice or after a scene")
                 case .failure(let problem): result.problems.append("\(open.name): \(problem.reason)")
                 }
             } else if let (key, value) = keyed(line), keys.contains(key), header != nil {
@@ -104,8 +125,9 @@ enum StyleCatalog {
         let reason: String
     }
 
-    /// One scene line: the setting, then `key: value` fields.
-    static func scene(_ line: String, shared: [String: String]) -> Swift.Result<StyleScene, Problem> {
+    /// One scene line: the setting, then `key: value` fields. `slots` are
+    /// the style's slot names, which its fields may use as `{name}`.
+    static func scene(_ line: String, shared: [String: String], slots: [String] = []) -> Swift.Result<StyleScene, Problem> {
         var parts = fields(of: line)
         guard !parts.isEmpty, keyed(parts[0]) == nil, !parts[0].isEmpty else {
             return .failure(Problem(reason: "a scene starts with its setting: \(line)"))
@@ -119,7 +141,8 @@ enum StyleCatalog {
             own[key] = value
         }
         let who = own["who"] ?? shared["who"] ?? StyleScene.subjectSlot
-        guard who.contains(StyleScene.subjectSlot) else {
+        let whoMarkers = StyleSlots.markers(in: who)
+        guard whoMarkers.contains(StyleSlots.subjectName) || whoMarkers.contains(where: slots.contains) else {
             return .failure(Problem(reason: "who: has no \(StyleScene.subjectSlot) in: \(line)"))
         }
         let details = list(own["with"]) + list(shared["with"])
@@ -130,9 +153,28 @@ enum StyleCatalog {
         } else {
             wear = nil
         }
-        return .success(StyleScene(who: who, setting: setting, details: details,
-                                   lighting: own["light"] ?? shared["light"], camera: own["camera"] ?? shared["camera"],
-                                   look: own["look"] ?? shared["look"], wear: wear))
+        let scene = StyleScene(who: who, setting: setting, details: details,
+                               lighting: own["light"] ?? shared["light"], camera: own["camera"] ?? shared["camera"],
+                               look: own["look"] ?? shared["look"], wear: wear)
+        let misplaced = texts(of: scene).dropFirst().flatMap(StyleSlots.markers).filter { $0 == StyleSlots.subjectName }
+        if !misplaced.isEmpty {
+            return .failure(Problem(reason: "\(StyleScene.subjectSlot) belongs in who: only, in: \(line)"))
+        }
+        if let unknown = markers(scene).first(where: { $0 != StyleSlots.subjectName && !slots.contains($0) }) {
+            return .failure(Problem(reason: "{\(unknown)} is not a slot of this style, in: \(line)"))
+        }
+        return .success(scene)
+    }
+
+    /// Every text a scene holds, `who` first.
+    static func texts(of scene: StyleScene) -> [String] {
+        [scene.who, scene.setting] + scene.details + [scene.lighting, scene.camera, scene.look].compactMap { $0 }
+            + [scene.wear?.neutral, scene.wear?.feminine, scene.wear?.masculine].compactMap { $0 }
+    }
+
+    /// The names of every `{marker}` a scene uses.
+    static func markers(_ scene: StyleScene) -> [String] {
+        texts(of: scene).flatMap(StyleSlots.markers)
     }
 
     /// `neutral / feminine / masculine`, the last two optional; an empty cut is none.
@@ -164,24 +206,35 @@ enum StyleCatalog {
 
     // MARK: Composing
 
-    /// A scene's prompt parts with this subject and wardrobe. The parts
+    /// A scene's prompt parts with this subject and wardrobe, its slots
+    /// filled with `texts` (slot name → the words to put in). The parts
     /// compose (``ImageRecipe/composedPrompt``) in the recipe's fixed order:
     /// subject, details, setting, lighting, camera, style.
-    static func prompt(_ scene: StyleScene, subject: String, wear choice: WardrobeChoice) -> ImageRecipe.Prompt {
+    ///
+    /// A scene whose `who` leads with a slot rather than `{subject}` — "{room}"
+    /// — takes a subject as its first detail when one is given, and no
+    /// default subject when not: "a kitchen with …, with a green island, …".
+    static func prompt(_ scene: StyleScene, subject: String, wear choice: WardrobeChoice,
+                       slots texts: [String: String] = [:]) -> ImageRecipe.Prompt {
+        let fill = { (text: String) in StyleSlots.filled(text, with: texts) }
         let trimmed = subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let who = scene.who.replacingOccurrences(of: StyleScene.subjectSlot,
-                                                 with: trimmed.isEmpty ? defaultSubject : trimmed)
+        let takesSubject = scene.who.contains(StyleScene.subjectSlot)
+        let who = fill(scene.who.replacingOccurrences(of: StyleScene.subjectSlot,
+                                                      with: trimmed.isEmpty ? defaultSubject : trimmed))
         var details: [String] = []
-        if let wear = scene.wear, let worn = clothes(wear, choice) { details.append("wearing \(worn)") }
-        details += scene.details
+        if !takesSubject, !trimmed.isEmpty { details.append(trimmed) }
+        if let wear = scene.wear, let worn = clothes(wear, choice) { details.append("wearing \(fill(worn))") }
+        details += scene.details.map(fill)
+        let setting = fill(scene.setting)
         // A scene that casts the subject — "as a wizard with an oversized hat",
         // "as a marble sculpture" — is a role, not a place: it joins the
         // subject, so the prompt reads "a person as a wizard, wearing a starry
         // robe" rather than putting the role after the clothes.
-        let role = isRole(scene.setting)
-        return ImageRecipe.Prompt(subject: role ? "\(who) \(scene.setting)" : who,
-                                  details: details.isEmpty ? nil : details, setting: role ? nil : scene.setting,
-                                  lighting: scene.lighting, camera: scene.camera, style: scene.look)
+        let role = isRole(setting)
+        return ImageRecipe.Prompt(subject: role ? "\(who) \(setting)" : who,
+                                  details: details.isEmpty ? nil : details, setting: role ? nil : setting,
+                                  lighting: scene.lighting.map(fill), camera: scene.camera.map(fill),
+                                  style: scene.look.map(fill))
     }
 
     /// Whether a scene's setting casts the subject as something.
