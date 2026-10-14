@@ -8,7 +8,9 @@
 //  interior style serves a kitchen, a hallway or a hotel lobby without a
 //  style per room. A slot has a default, so a style always composes, and
 //  may list the values it knows; a known value can stand for a longer
-//  phrase ("kitchen" → "a kitchen with fitted cabinets, …"). Any other
+//  phrase ("kitchen" → "a kitchen with fitted cabinets, …"), answer to
+//  aliases ("garden" → "outdoor garden") and carry tags ("outdoors") that
+//  choose the style's scenes and wording for that kind of value. Any other
 //  value goes into the prompt as typed.
 //
 
@@ -45,10 +47,22 @@ public struct StyleSlot: Codable, Sendable, Equatable {
         /// "a home office with a desk facing the window, …".
         public let phrase: String?
 
-        public init(name: String, phrase: String? = nil) {
+        /// Other names that mean this value: `garden` for `outdoor garden`.
+        public let aliases: [String]?
+
+        /// What kind of value it is — `outdoors` — so a style can give it
+        /// its own scenes (`when: outdoors`) and wording (`look@outdoors:`).
+        public let tags: [String]?
+
+        public init(name: String, phrase: String? = nil, aliases: [String]? = nil, tags: [String]? = nil) {
             self.name = name
             self.phrase = phrase
+            self.aliases = aliases
+            self.tags = tags
         }
+
+        /// The name and every alias.
+        public var names: [String] { [name] + (aliases ?? []) }
 
         /// The words a prompt gets for this value.
         public var text: String { phrase ?? name }

@@ -200,6 +200,46 @@ struct StyleTests {
         #expect(try plain.slotValues([:]).isEmpty)
     }
 
+    @Test("Tags: a tagged value picks the scenes marked for it and the style's key@tag wording; aliases find values")
+    func tagsPickScenes() throws {
+        let text = """
+        ## tag-test | Tag test | interiors
+        look: room photograph
+        look@outdoors: garden photograph
+        with: rugs
+        with@outdoors: gravel
+        who: {room}
+        slot: room = lounge => a lounge; garden / yard / back garden => a garden #outdoors
+        - from the door
+        - from the sofa
+        - from the street | when: outdoors
+        """
+        let result = StyleCatalog.parse(text)
+        #expect(result.problems.isEmpty, "\(result.problems)")
+        let style = try #require(result.styles.first)
+        let garden = try #require(style.slots.first?.known.last)
+        #expect(garden.name == "garden" && garden.aliases == ["yard", "back garden"] && garden.tags == ["outdoors"])
+        #expect(style.sceneIndices() == [0, 1])
+        #expect(style.sceneIndices(vars: ["room": "Back-Garden"]) == [2])
+        #expect(style.sceneIndex(seed: 5, vars: ["room": "yard"]) == 2)
+        #expect(ImageRecipe(prompt: style.prompt(scene: 2, subject: "", vars: ["room": "yard"])).composedPrompt
+            == "a garden, gravel, from the street, garden photograph")
+        #expect(ImageRecipe(prompt: style.prompt(scene: 1, subject: "")).composedPrompt
+            == "a lounge, rugs, from the sofa, room photograph")
+        #expect(throws: StyleCatalog.Problem.self) { try StyleSlots.parse("room = a #Out").get() }
+        #expect(throws: StyleCatalog.Problem.self) { try StyleSlots.parse("room = a / b; b").get() }
+        // A when: or key@tag no value carries is reported.
+        let bad = """
+        ## bad-tags | Bad | interiors
+        look@inside: x
+        who: {room}
+        slot: room = lounge
+        - from the door | when: outdoors
+        """
+        #expect(StyleCatalog.parse(bad).problems == ["bad-tags: no slot value carries #inside",
+                                                     "bad-tags: no slot value carries #outdoors"])
+    }
+
     @Test("A marker that is not declared, a slot no scene uses and a misplaced subject are reported")
     func slotProblems() {
         let bad = """
@@ -240,19 +280,43 @@ struct StyleTests {
         #expect(rooms.defaultValue == "living room")
         #expect(rooms.known.count >= 60)
         #expect(rooms.known.allSatisfy { $0.phrase != nil })
+        let outdoors = rooms.known.filter { $0.tags == ["outdoors"] }
+        #expect(outdoors.count >= 8)
         for style in interiors {
             #expect(style.slots == [rooms], "\(style.name)")
             #expect(!style.takesSubject, "\(style.name)")
             for room in rooms.known {
-                for index in style.scenes.indices {
+                let outside = room.tags?.contains("outdoors") ?? false
+                let pool = style.sceneIndices(vars: ["room": room.name])
+                #expect(pool.count == 6, "\(style.name) \(room.name)")
+                for index in pool {
+                    #expect((style.scenes[index].when == "outdoors") == outside, "\(style.name) \(room.name)")
                     let text = ImageRecipe(prompt: style.prompt(scene: index, subject: "", vars: ["room": room.name]))
                         .composedPrompt
                     #expect(text.hasPrefix(room.phrase ?? ""), "\(style.name) \(room.name)")
                     #expect(!text.contains("{"), "\(style.name) \(room.name)")
                     #expect(text.count < 700, "\(style.name) \(room.name) \(index) is \(text.count) characters")
+                    // Outside, nothing says "interior" or "indoor" — the words that drew a garden as a room.
+                    if outside {
+                        #expect(!text.lowercased().contains("interior") && !text.lowercased().contains("indoor"),
+                                "\(style.name) \(room.name): \(text)")
+                    }
                 }
             }
         }
+        // Everyday names find the outdoor values; a free value gets the indoor views.
+        let style = try #require(ImageStyle.named("christmas-interior"))
+        for typed in ["house front", "Garden", "backyard", "patio", "pool", "driveway", "car park", "porch", "balcony"] {
+            let pool = style.sceneIndices(vars: ["room": typed])
+            #expect(pool.allSatisfy { style.scenes[$0].when == "outdoors" }, "\(typed)")
+            #expect(rooms.value(named: typed)?.tags == ["outdoors"], "\(typed)")
+        }
+        #expect(style.sceneIndices(vars: ["room": "wine cellar"]) == Array(0..<6))
+        #expect(style.sceneIndices() == Array(0..<6))
+        let front = ImageRecipe(prompt: style.prompt(scene: style.sceneIndex(seed: 0, vars: ["room": "house front"]),
+                                                     subject: "", vars: ["room": "house front"])).composedPrompt
+        #expect(front.hasPrefix("the front of a house"), "\(front)")
+        #expect(front.contains("wreath on the front door") && !front.contains("stockings"), "\(front)")
         // Nothing adult: the competitor's adult room types were left out.
         #expect(!rooms.known.contains { $0.name.contains("dungeon") || $0.name.contains("pole") })
     }

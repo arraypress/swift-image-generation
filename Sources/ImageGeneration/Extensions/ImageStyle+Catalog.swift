@@ -21,9 +21,23 @@ public extension ImageStyle {
         return all.first { $0.name == wanted }
     }
 
-    /// The scene a seed picks — the same seed, the same scene; consecutive
-    /// seeds, consecutive scenes. Zero-based.
-    func sceneIndex(seed: UInt32) -> Int { StyleCatalog.sceneIndex(seed: seed, of: scenes.count) }
+    /// The scenes (indices into ``scenes``) these slot values use: the ones
+    /// marked for a tag a value carries (`when: outdoors` for a garden),
+    /// otherwise the general ones. For a style without tagged scenes, all.
+    func sceneIndices(vars: [String: String] = [:]) -> [Int] {
+        StyleSlots.eligible(scenes, tags: StyleSlots.tags(vars, for: slots))
+    }
+
+    /// The scene a seed picks among those the values use — the same seed,
+    /// the same scene; consecutive seeds, consecutive scenes. An index into
+    /// ``scenes``.
+    func sceneIndex(seed: UInt32, vars: [String: String]) -> Int {
+        let pool = sceneIndices(vars: vars)
+        return pool[StyleCatalog.sceneIndex(seed: seed, of: pool.count)]
+    }
+
+    /// The scene a seed picks with every slot at its default. Zero-based.
+    func sceneIndex(seed: UInt32) -> Int { sceneIndex(seed: seed, vars: [:]) }
 
     /// Scene `index` (zero-based) as recipe prompt parts around `subject`,
     /// its slots filled from `vars` (slot name → value) or their defaults.
@@ -55,9 +69,13 @@ public extension ImageStyle {
 
 public extension StyleSlot {
 
-    /// The words a value puts in the prompt: a known value's phrase (case,
-    /// hyphens and spacing ignored when matching), otherwise the value itself.
+    /// The words a value puts in the prompt: a known value's phrase (its
+    /// name or an alias; case, hyphens and spacing ignored), otherwise the
+    /// value itself.
     func text(for value: String) -> String { StyleSlots.text(of: value, in: self) }
+
+    /// The known value a typed one names, by name or alias; `nil` for a free value.
+    func value(named typed: String) -> Value? { StyleSlots.known(typed, in: self) }
 }
 
 public extension StyleScene {

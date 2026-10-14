@@ -87,8 +87,13 @@ public struct StyleScene: Codable, Sendable, Equatable {
     /// What the subject wears; `nil` when the scene says nothing about it.
     public let wear: Wardrobe?
 
+    /// A slot-value tag this scene is for — `outdoors` — or `nil` for a
+    /// general scene. When a value in use carries the tag, its scenes
+    /// replace the general ones.
+    public let when: String?
+
     public init(who: String = StyleScene.subjectSlot, setting: String, details: [String] = [], lighting: String? = nil,
-                camera: String? = nil, look: String? = nil, wear: Wardrobe? = nil) {
+                camera: String? = nil, look: String? = nil, wear: Wardrobe? = nil, when: String? = nil) {
         self.who = who
         self.setting = setting
         self.details = details
@@ -96,6 +101,7 @@ public struct StyleScene: Codable, Sendable, Equatable {
         self.camera = camera
         self.look = look
         self.wear = wear
+        self.when = when
     }
 
     /// The marker in ``who`` the subject replaces.

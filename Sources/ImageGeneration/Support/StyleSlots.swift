@@ -14,8 +14,11 @@
 //
 //  — the slot's name, then its known values separated by semicolons, the
 //  first being the default. `value => phrase` lets a short value stand for
-//  a longer phrase in the prompt. A value typed that the slot does not know
-//  goes into the prompt as typed.
+//  a longer phrase in the prompt; `value / alias / alias => phrase` lets
+//  other names find it; a trailing `#tag` (`#outdoors`) marks what kind of
+//  value it is, which picks the style's scenes marked `when: outdoors` and
+//  its `key@outdoors:` wording. A value typed that the slot does not know
+//  goes into the prompt as typed, with no tag.
 //
 
 import Foundation
@@ -37,15 +40,23 @@ enum StyleSlots {
         var known: [StyleSlot.Value] = []
         var seen: Set<String> = []
         for entry in StyleCatalog.list(halves[1].replacingOccurrences(of: "=>", with: "\u{1}")) {
-            let parts = entry.split(separator: "\u{1}", maxSplits: 1, omittingEmptySubsequences: false)
+            let tagged = entry.components(separatedBy: "#").map { $0.trimmingCharacters(in: .whitespaces) }
+            let tags = Array(tagged.dropFirst())
+            guard tags.allSatisfy(isName) else {
+                return .failure(.init(reason: "slot \(halves[0]) has a tag that is not a lower-case name: \(entry)"))
+            }
+            let parts = tagged[0].split(separator: "\u{1}", maxSplits: 1, omittingEmptySubsequences: false)
                 .map { $0.trimmingCharacters(in: .whitespaces) }
-            guard !parts[0].isEmpty, parts.count == 1 || !parts[1].isEmpty else {
+            let names = parts[0].components(separatedBy: "/").map { $0.trimmingCharacters(in: .whitespaces) }
+            guard names.allSatisfy({ !$0.isEmpty }), parts.count == 1 || !parts[1].isEmpty else {
                 return .failure(.init(reason: "slot \(halves[0]) has an empty value: \(entry)"))
             }
-            guard seen.insert(key(parts[0])).inserted else {
-                return .failure(.init(reason: "slot \(halves[0]) lists \(parts[0]) twice"))
+            for name in names where !seen.insert(key(name)).inserted {
+                return .failure(.init(reason: "slot \(halves[0]) lists \(name) twice"))
             }
-            known.append(StyleSlot.Value(name: parts[0], phrase: parts.count == 2 ? parts[1] : nil))
+            known.append(StyleSlot.Value(name: names[0], phrase: parts.count == 2 ? parts[1] : nil,
+                                         aliases: names.count > 1 ? Array(names.dropFirst()) : nil,
+                                         tags: tags.isEmpty ? nil : tags))
         }
         guard let first = known.first else {
             return .failure(.init(reason: "slot \(halves[0]) has no default: \(text)"))
@@ -116,21 +127,45 @@ enum StyleSlots {
         slots.first { $0.name == name }?.defaultValue ?? ""
     }
 
+    /// The known value a typed one names — by its name or an alias — or `nil`.
+    static func known(_ value: String, in slot: StyleSlot) -> StyleSlot.Value? {
+        let wanted = key(value)
+        return slot.known.first { $0.names.contains { key($0) == wanted } }
+    }
+
     /// The words a value puts in the prompt: a known value's phrase, or the value as typed.
     static func text(of value: String, in slot: StyleSlot) -> String {
-        let wanted = key(value)
-        return slot.known.first { key($0.name) == wanted }?.text ?? value
+        known(value, in: slot)?.text ?? value
+    }
+
+    /// The value in use for each slot: the given one, or the default.
+    static func inUse(_ values: [String: String], for slots: [StyleSlot]) -> [(StyleSlot, String)] {
+        slots.map { slot in
+            let given = values.first { $0.key.lowercased() == slot.name }?.value
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return (slot, given.flatMap { $0.isEmpty ? nil : $0 } ?? slot.defaultValue)
+        }
+    }
+
+    /// The tags the values in use carry: `["outdoors"]` for a garden.
+    static func tags(_ values: [String: String], for slots: [StyleSlot]) -> Set<String> {
+        Set(inUse(values, for: slots).flatMap { known($0.1, in: $0.0)?.tags ?? [] })
+    }
+
+    /// The scenes (indices) for these tags: those marked `when:` one of
+    /// them, or — when none is — the general scenes. Never empty.
+    static func eligible(_ scenes: [StyleScene], tags: Set<String>) -> [Int] {
+        let tagged = scenes.indices.filter { scenes[$0].when.map(tags.contains) ?? false }
+        if !tagged.isEmpty { return tagged }
+        let general = scenes.indices.filter { scenes[$0].when == nil }
+        return general.isEmpty ? Array(scenes.indices) : general
     }
 
     /// Every slot's text for these values; a missing or unknown name takes
     /// the slot's default (callers check names with ``resolved(_:for:style:)``).
     static func texts(_ values: [String: String], for slots: [StyleSlot]) -> [String: String] {
         var texts: [String: String] = [:]
-        for slot in slots {
-            let given = values.first { $0.key.lowercased() == slot.name }?.value
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            texts[slot.name] = text(of: given.flatMap { $0.isEmpty ? nil : $0 } ?? slot.defaultValue, in: slot)
-        }
+        for (slot, value) in inUse(values, for: slots) { texts[slot.name] = text(of: value, in: slot) }
         return texts
     }
 

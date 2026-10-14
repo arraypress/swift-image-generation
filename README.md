@@ -193,7 +193,7 @@ know, so a misspelt `"lightning"` would otherwise vanish and the picture would q
 
 ## Styles (0.7; slots and interiors 0.12)
 
-173 built-in styles in 13 categories — 1,084 scenes — as Swift data (`ImageStyle.all`), not a
+173 built-in styles in 13 categories — 1,426 scenes — as Swift data (`ImageStyle.all`), not a
 resource bundle, so they travel with a binary however it is installed. A style is a look with
 several scenes: `hard-flash` is seven different shots that share a flash and a lens, not one prompt.
 A scene becomes `ImageRecipe.Prompt` parts around a subject, so a picture made from a style saves as
@@ -261,20 +261,32 @@ the parser reports any `{marker}` that is not declared, any declared slot no sce
 `ImageRecipe.Provenance` gained `style`, `scene` and `vars`, so a recipe made from a style says
 where its (fully written-out) prompt came from.
 
+**Aliases and tags.** A value may answer to other names — `outdoor garden / garden / backyard =>
+…` — and carry tags — `… #outdoors`. A scene marked `when: outdoors` is used only while a value in
+use carries that tag, and then replaces the general scenes; it takes a style key written
+`look@outdoors:` (any key, `with` included) over the plain one. `sceneIndices(vars:)` says which
+scenes a set of values uses and `sceneIndex(seed:vars:)` picks among them. The parser reports a
+`when:` or `key@tag` that no value of the style carries.
+
 ### Interiors
 
-57 interior design styles × 66 rooms and spaces × 6 views (from the entrance, from a corner, the
+57 interior design styles × 69 rooms and spaces × 6 views (from the entrance, from a corner, the
 main wall straight on, from the far end, a closer look at the furniture, a raised view of the
 layout). The style says what makes the look — palette, materials, signature furniture, light; the
-room phrase says what is in the space; the view sets the lens. Composed prompts run 333–543
-characters.
+room phrase says what is in the space; the view sets the lens. Ten spaces are tagged `#outdoors`
+(house front, garden, patio, pool area, porch, balcony, rooftop terrace, carport, detached garage,
+car park) and get six exterior views and each style's `@outdoors` look, light and details — its
+materials and palette outside, with no "interior" anywhere (a test checks every outdoor prompt).
+The first contact sheet showed why: a Christmas garden and a sketched house front came out as
+rooms.
 
 **Where the wording comes from.** The style and room lists follow a commercial interior-design
 site (56 styles, 68 room types); every word of each style and room was written here. Renamed: the
 rental-platform style (`guest-ready`), "gaming room" as a style (`gaming-den`), "tribal"
 (`global-artisan`), and five names a people style already had (`-interior`), with Chinese New
-Year as `lunar-new-year-interior`; Japandi added; two adult room types left out; no brand or film
-names. **Measured 2026-10-14:** all 22,572 composed prompts (57 × 66 × 6), and the Swift source
+Year as `lunar-new-year-interior`; Japandi, porch, balcony and rooftop terrace added; two adult
+room types left out; no brand or film names. **Measured 2026-10-14:** all 23,598 composed prompts
+(57 styles × 69 rooms × the 6 views each uses), and the Swift source
 itself, share **no run of six words** with anything fetched from the site — 966 published design
 prompts from 1,068 design pages, the 56 style pages and the home page (40,689 six-word runs, case
 and punctuation ignored). That text and the gate script stay outside the repository; the wording

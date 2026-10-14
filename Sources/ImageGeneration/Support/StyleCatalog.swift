@@ -31,6 +31,12 @@
 //  `{subject}`; a subject given to such a scene joins its details. Every
 //  marker must be declared, and every declared slot used.
 //
+//  A slot value may carry a tag (`#outdoors`). A scene marked `when:
+//  outdoors` is used only while a value in use carries it — and then the
+//  general scenes are not — and it takes a style key written `look@outdoors:`
+//  (any key, `with` included) over the plain one. Every `when:` and every
+//  `key@tag` must name a tag one of the style's slot values carries.
+//
 
 import Foundation
 
@@ -72,6 +78,11 @@ enum StyleCatalog {
             for slot in slots where !used.contains(slot.name) {
                 result.problems.append("\(open.name): slot \(slot.name) is in no scene")
             }
+            let carried = Set(slots.flatMap { $0.known.flatMap { $0.tags ?? [] } })
+            let wanted = Set(scenes.compactMap(\.when)).union(shared.keys.compactMap(tag(of:)))
+            for tag in wanted.subtracting(carried).sorted() {
+                result.problems.append("\(open.name): no slot value carries #\(tag)")
+            }
             result.styles.append(ImageStyle(name: open.name, title: open.title, category: open.category, scenes: scenes,
                                             slots: slots))
             header = nil
@@ -108,7 +119,7 @@ enum StyleCatalog {
                     result.problems.append("\(open.name): slot \(slot.name) comes twice or after a scene")
                 case .failure(let problem): result.problems.append("\(open.name): \(problem.reason)")
                 }
-            } else if let (key, value) = keyed(line), keys.contains(key), header != nil {
+            } else if let (key, value) = keyed(line), keys.contains(base(of: key)), header != nil {
                 shared[key] = value
             } else {
                 result.problems.append("\(header?.name ?? "?"): cannot read \(line)")
@@ -119,7 +130,18 @@ enum StyleCatalog {
     }
 
     /// The keys a style or a scene may set.
-    static let keys: Set<String> = ["look", "light", "camera", "wear", "with", "who"]
+    static let keys: Set<String> = ["look", "light", "camera", "wear", "with", "who", "when"]
+
+    /// `look` of `look@outdoors`.
+    static func base(of key: String) -> String {
+        key.split(separator: "@", maxSplits: 1).first.map(String.init) ?? key
+    }
+
+    /// `outdoors` of `look@outdoors`; `nil` for a plain key.
+    static func tag(of key: String) -> String? {
+        let parts = key.split(separator: "@", maxSplits: 1)
+        return parts.count == 2 ? String(parts[1]) : nil
+    }
 
     struct Problem: Error {
         let reason: String
@@ -140,22 +162,27 @@ enum StyleCatalog {
             }
             own[key] = value
         }
-        let who = own["who"] ?? shared["who"] ?? StyleScene.subjectSlot
+        let when = own["when"] ?? shared["when"]
+        // A tagged scene takes `key@tag` over the style's plain `key`.
+        func inherited(_ key: String) -> String? {
+            when.flatMap { shared["\(key)@\($0)"] } ?? shared[key]
+        }
+        let who = own["who"] ?? inherited("who") ?? StyleScene.subjectSlot
         let whoMarkers = StyleSlots.markers(in: who)
         guard whoMarkers.contains(StyleSlots.subjectName) || whoMarkers.contains(where: slots.contains) else {
             return .failure(Problem(reason: "who: has no \(StyleScene.subjectSlot) in: \(line)"))
         }
-        let details = list(own["with"]) + list(shared["with"])
+        let details = list(own["with"]) + list(inherited("with"))
         let wear: Wardrobe?
-        if let text = own["wear"] ?? shared["wear"] {
+        if let text = own["wear"] ?? inherited("wear") {
             guard let parsed = wardrobe(text) else { return .failure(Problem(reason: "bad wear: \(text)")) }
             wear = parsed
         } else {
             wear = nil
         }
         let scene = StyleScene(who: who, setting: setting, details: details,
-                               lighting: own["light"] ?? shared["light"], camera: own["camera"] ?? shared["camera"],
-                               look: own["look"] ?? shared["look"], wear: wear)
+                               lighting: own["light"] ?? inherited("light"), camera: own["camera"] ?? inherited("camera"),
+                               look: own["look"] ?? inherited("look"), wear: wear, when: when)
         let misplaced = texts(of: scene).dropFirst().flatMap(StyleSlots.markers).filter { $0 == StyleSlots.subjectName }
         if !misplaced.isEmpty {
             return .failure(Problem(reason: "\(StyleScene.subjectSlot) belongs in who: only, in: \(line)"))
@@ -194,7 +221,10 @@ enum StyleCatalog {
     static func keyed(_ text: String) -> (String, String)? {
         guard let colon = text.firstIndex(of: ":") else { return nil }
         let key = String(text[..<colon])
-        guard !key.isEmpty, key.allSatisfy({ $0.isLowercase && $0.isLetter }) else { return nil }
+        // `look`, or `look@outdoors`: a lower-case word, optionally tagged.
+        let word = { (part: Substring) in !part.isEmpty && part.allSatisfy { $0.isLowercase && $0.isLetter } }
+        let parts = key.split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false)
+        guard word(parts[0]), parts.count == 1 || StyleSlots.isName(String(parts[1])) else { return nil }
         let value = text[text.index(after: colon)...].trimmingCharacters(in: .whitespaces)
         return value.isEmpty ? nil : (key, value)
     }
