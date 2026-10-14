@@ -154,6 +154,50 @@ struct MaskedEditTests {
         }
     }
 
+    @Test("The edit's overall shade draws no outline round the region (the dressing halo)")
+    func noPaleOutline() throws {
+        let (w, h) = (300, 300)
+        let wall = (230, 228, 222), white = (246, 246, 248)
+        // A grey wall (fine grain) and a white t-shirt; the mask misses the shirt's outer 2 px.
+        var bytes = Pictures.textured(width: w, height: h, base: wall, seed: 3).enumerated().map { i, v -> UInt8 in
+            i % 4 == 3 ? 255 : UInt8(clamping: Int(([wall.0, wall.1, wall.2][i % 4])) + (Int(v) - [wall.0, wall.1, wall.2][i % 4]) / 6)
+        }
+        for y in 80..<220 { for x in 100..<200 {
+            let p = (y * w + x) * 4; bytes[p] = UInt8(white.0); bytes[p + 1] = UInt8(white.1); bytes[p + 2] = UInt8(white.2)
+        } }
+        let original = Pictures.image(bytes, width: w, height: h)
+        let mask = Pictures.mask("tshirt", width: w, height: h, rect: (102, 82, 96, 136), replaces: true)
+        let plan = try MaskedEdit.plan([mask], imageWidth: w, imageHeight: h)
+        // The edit: a narrower red top, and the wall — even where the shirt was — paler and
+        // cooler everywhere (+6, +8, +10: FLUX's shade on the dressing fixtures).
+        let side = plan.side
+        var edited = [UInt8](repeating: 255, count: side * side * 4)
+        for y in 0..<side { for x in 0..<side {
+            let ix = plan.x + x, iy = plan.y + y, p = (y * side + x) * 4
+            let top = ix >= 112 && ix < 188 && iy >= 90 && iy < 210
+            edited[p] = UInt8(top ? 200 : wall.0 + 6); edited[p + 1] = UInt8(top ? 40 : wall.1 + 8)
+            edited[p + 2] = UInt8(top ? 60 : wall.2 + 10)
+        } }
+        let (result, report) = try MaskedEdit.composite(original: original, edited: Pictures.image(edited, width: side, height: side),
+                                                        masks: [mask], plan: plan)
+        #expect(report.untouchedMaxDifference == 0)
+        let out = Pictures.raster(result).bytes
+        func blue(_ x: Int, _ y: Int) -> Int { Int(out[(y * w + x) * 4 + 2]) }
+        // The wall just outside the shirt: the original's own pixels, not the paler edit.
+        for x in [97, 99, 200, 202] {
+            let p = (150 * w + x) * 4
+            let moved = (0..<3).map { abs(Int(out[p + $0]) - Int(bytes[p + $0])) }.max() ?? 0
+            #expect(moved <= 2, "no pale outline at x=\(x): moved \(moved)")
+        }
+        // The shirt's missed fringe still goes: wall-coloured now, not white.
+        #expect(abs(blue(101, 150) - wall.2) <= 6, "the fringe is replaced: blue \(blue(101, 150))")
+        // The wall the edit painted where the shirt was: shade taken out.
+        #expect(abs(blue(106, 150) - wall.2) <= 3, "painted wall matches the wall: blue \(blue(106, 150))")
+        // The new top is the edit's, untouched by the shade.
+        let centre = (150 * w + 150) * 4
+        #expect(out[centre] == 200 && out[centre + 1] == 40 && out[centre + 2] == 60, "the top is not recoloured")
+    }
+
     @Test("A replacing mask takes the edit's own pixels")
     func replaceTakesTheEdit() throws {
         let (w, h) = (400, 300)

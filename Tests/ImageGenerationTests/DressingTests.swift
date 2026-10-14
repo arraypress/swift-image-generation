@@ -101,6 +101,39 @@ struct GarmentTests {
         #expect(text.contains("Keep their face, hair, pose, trousers and the background exactly as they are."))
         #expect(GarmentKind.top.instruction(noun: "sweater").contains("in the sweater shown on the right"))
         #expect(GarmentKind.top.instruction(colour: "navy").contains("in the navy top"))
+        #expect(!text.contains("stripes"))
+    }
+
+    @Test("A striped garment is named striped, with its stripes asked for as wide as shown")
+    func stripedInstruction() {
+        // The wording measured on the striped top (white 23% → 32% of the garment against 35%).
+        let text = GarmentKind.top.instruction(colour: "red and white", longSleeves: true, striped: true)
+        #expect(text.hasPrefix("Dress the person on the left in the red and white striped long-sleeved top shown on the right, "
+                               + "in place of what they are wearing there: the same top, with exactly its colours, pattern and cut: "
+                               + "its stripes as many and as wide as shown, its sleeves down to the wrists. Keep"))
+    }
+
+    @Test("Horizontal stripes are told from prints and plain cloth by how the lightness repeats")
+    func stripes() {
+        let (w, h) = (200, 240)
+        func garment(_ value: (Int, Int) -> Double) -> [Double] {
+            var out = [Double](repeating: .nan, count: w * h)
+            for y in 20..<220 { for x in 30..<170 { out[y * w + x] = value(x, y) } }
+            return out
+        }
+        // Soft-edged bands as a camera sees them, every 30 px; vertical ones are not read.
+        let bands = garment { _, y in 72 + 20 * tanh(3 * cos(2 * Double.pi * Double(y) / 30)) }
+        let pinstripe = garment { x, _ in 60 + 30 * tanh(3 * cos(2 * Double.pi * Double(x) / 16)) }
+        // A plain garment with soft folds, and a large print whose leaves do not repeat.
+        let plain = garment { x, y in 60 + 4 * sin(Double(x + y) / 25) }
+        let leaves = [(52, 40, 22), (120, 70, 30), (75, 120, 26), (140, 150, 18), (60, 190, 28), (125, 205, 15)]
+        let blotches = garment { x, y in
+            leaves.contains { (x - $0.0) * (x - $0.0) + (y - $0.1) * (y - $0.1) < $0.2 * $0.2 } ? 40 : 90
+        }
+        #expect(StripeReader.regularity(bands, width: w, height: h) >= StripeReader.striped)
+        #expect(StripeReader.regularity(pinstripe, width: w, height: h) < StripeReader.striped)
+        #expect(StripeReader.regularity(plain, width: w, height: h) < StripeReader.striped)
+        #expect(StripeReader.regularity(blotches, width: w, height: h) < StripeReader.striped)
     }
 
     @Test("Long sleeves reach most of the way down the garment")

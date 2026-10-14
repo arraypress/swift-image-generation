@@ -126,12 +126,16 @@ enum GarmentText {
     /// showed no sleeves — said, because a sleeveless dress put on a woman
     /// in a t-shirt kept the t-shirt's sleeves. `colour` words go in only when a
     /// caller passes them: measured, "red and white" without "striped" made
-    /// a striped top a plain red one with a white hem.
+    /// a striped top a plain red one with a white hem. `striped`
+    /// (``StripeReader``) says so, and asks for the stripes as many and as
+    /// wide as shown: the striped top's white bands came back thinner than
+    /// its own without it (23% of the garment against 35%), and with it and
+    /// its colours named, 32% — seeds 11, 12, 13 in the README.
     static func instruction(kind: GarmentKind, noun: String? = nil, colour: String? = nil, longSleeves: Bool = false,
-                            sleeveless: Bool = false) -> String {
+                            sleeveless: Bool = false, striped: Bool = false) -> String {
         let name = noun ?? Self.noun(kind)
         let cut = longSleeves ? "long-sleeved" : sleeveless && upperBody(kind) ? "sleeveless" : nil
-        let thing = [colour, cut, name].compactMap { $0 }.joined(separator: " ")
+        let thing = [colour, striped ? "striped" : nil, cut, name].compactMap { $0 }.joined(separator: " ")
         let rest: String
         switch kind {
         case .top, .outerwear: rest = "trousers"
@@ -140,7 +144,9 @@ enum GarmentText {
         case .shoes, .hat: rest = "clothes"
         }
         return "Dress the person on the left in the \(thing) shown on the right, in place of what they are wearing there: "
-            + "the same \(name), with exactly its colours, pattern and cut" + (longSleeves ? ", its sleeves down to the wrists" : "")
+            + "the same \(name), with exactly its colours, pattern and cut"
+            + (striped ? ": its stripes as many and as wide as shown" : "")
+            + (longSleeves ? ", its sleeves down to the wrists" : "")
             + ". Keep their face, hair, pose, \(rest) and the background exactly as they are. Leave the right side as it is."
     }
 }

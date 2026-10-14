@@ -114,7 +114,14 @@ job (the `imagine` CLI does it on first use).
     detail, for things removed or added. The low-pass is a normalised blur that leaves the
     replaced zone out, so a removed object does not smear into what is kept;
   - work happens in the picture's own colour space and every pixel the mask cannot touch is the
-    original's bytes; `MaskedEditReport.untouchedMaxDifference` measures it (0 in every test).
+    original's bytes; `MaskedEditReport.untouchedMaxDifference` measures it (0 in every test);
+  - the seam is matched (0.13.1). FLUX hands its square back a shade off — on a grey studio wall
+    +5…+10 per channel, paler and cooler, everywhere — so the grown ring drew a pale outline round
+    a dressed body. The shade is measured where the region does not reach and spread inward; a ring
+    pixel outside the masks keeps the original where the edit, shade taken out, only repeats it
+    (unless the original looks like the masked thing — a missed fringe still goes), and edit pixels
+    that show the surroundings (a wall painted where a wider garment was) lose the shade. Nothing
+    the edit drew is recoloured.
  `GeneratedImage.write(to:generator:embedPrompt:)` writes PNG, JPEG
   or HEIC carrying the IPTC digital-source type `trainedAlgorithmicMedia`, the model as IPTC
   `AISystemUsed` and your tool as `xmp:CreatorTool` (checked with exiftool). The prompt is written
@@ -369,6 +376,14 @@ RegionMask.candidates(for: "t-shirt")    // ["t-shirt", "tshirt", "top", "shirt"
   named among neutrals, so a white stripe is never "cream"). Naming one colour helped (a mustard
   jacket ΔE 3.5 against 5.4); naming two hurt — "red and white" without "striped" made a striped top
   plain red — so callers should name a garment's colour only when it has one.
+- **`ReferenceFraming.isStriped(_:mask:)`** (0.13.1) — horizontal stripes, read from how the
+  lightness repeats down the garment's middle (the first autocorrelation peak of the row profile,
+  ≥ 0.25). Measured on six garment pictures only: the striped top 0.44; two prints, a jacket,
+  trousers and trainers −0.11 to −1. Vertical stripes are not read (read both ways, trainers side by
+  side scored 0.22). `GarmentKind.instruction(…, striped: true)` names the garment "striped" and asks
+  for "its stripes as many and as wide as shown": with its colours named too, the striped top's white
+  share rose from 23.5 / 11.9 / 28.5% to 32.5 / 25.1 / 33.1% (seeds 11, 12, 13; the garment's own
+  35%).
 - `ImageRecipe.Inputs` gains `references_full` and `beside`; a recipe written before imagine 0.15
   replays with its references whole (`framesReferences`), as it drew.
 

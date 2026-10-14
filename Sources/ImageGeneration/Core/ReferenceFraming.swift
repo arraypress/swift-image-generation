@@ -105,4 +105,22 @@ public enum ReferenceFraming {
         }
         return ColourNames.describe(colours)
     }
+
+    /// Whether the part of `image` under `mask` is striped — its lightness
+    /// repeats across the middle, row by row or column by column
+    /// (``StripeReader``). A striped garment is named "striped" in a dressing
+    /// instruction, with its colours, and asked for its stripes as wide as
+    /// shown.
+    public static func isStriped(_ image: CGImage, mask: RegionMask) -> Bool {
+        let space = PixelRaster.workingSpace(for: image)
+        guard let raster = PixelRaster.render(image, width: image.width, height: image.height, colorSpace: space) else {
+            return false
+        }
+        let pixels = MaskedComposite.fitted(mask, width: image.width, height: image.height)
+        var lightness = [Double](repeating: .nan, count: image.width * image.height)
+        for p in 0..<(image.width * image.height) where pixels[p] >= 128 {
+            lightness[p] = ColourNames.lab(raster.bytes[p * 4], raster.bytes[p * 4 + 1], raster.bytes[p * 4 + 2]).l
+        }
+        return StripeReader.regularity(lightness, width: image.width, height: image.height) >= StripeReader.striped
+    }
 }

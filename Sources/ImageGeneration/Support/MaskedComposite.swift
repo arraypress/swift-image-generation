@@ -12,7 +12,8 @@
 //  measured with a normalised blur that leaves replaced pixels out — a plain
 //  blur pulled the dark of glasses frames into the skin around them as a
 //  halo. Every pixel outside the grown, feathered region is copied, so it
-//  is the original's byte for byte.
+//  is the original's byte for byte; at the region's seam the edit's overall
+//  shade is matched to the original's (Support/SeamMatch.swift).
 //
 
 import CoreGraphics
@@ -144,11 +145,11 @@ enum MaskedComposite {
             planes.append(o)
         }
         var likeness = [Float](repeating: 1, count: count)
+        // What the masked thing looks like near each pixel.
+        let nearby = planes.map {
+            PlaneMath.normalisedBlur($0, weight: union, width: side, height: side, sigma: Double(tuning.grow) * 2)
+        }
         do {
-            // What the masked thing looks like near each pixel.
-            let nearby = planes.map {
-                PlaneMath.normalisedBlur($0, weight: union, width: side, height: side, sigma: Double(tuning.grow) * 2)
-            }
             let spread: Float = 30   // colour distance (0–255 RGB) at which a ring pixel counts ~60%
             for i in 0..<count {
                 let dr = planes[0][i] - nearby[0][i], dg = planes[1][i] - nearby[1][i], db = planes[2][i] - nearby[2][i]
@@ -172,11 +173,27 @@ enum MaskedComposite {
             weight[i] = max(0, 1 - excluded[i])
         }
 
+        // The seam (SeamMatch): outside the masks, where the edit only
+        // repeats the original once its shade is taken out, the original
+        // stays — the grown ring drew a pale outline round a dressed body —
+        // and where the edit shows the surroundings it loses the shade.
+        var edits: [[Float]] = []
+        for channel in 0..<3 {
+            var e = [Float](repeating: 0, count: count)
+            for i in 0..<count { e[i] = Float(edit.bytes[i * 4 + channel]) }
+            edits.append(e)
+        }
+        let seam = SeamMatch.match(original: planes, edit: edits, thing: nearby, region: alpha, side: side, plan: plan)
+        for i in 0..<count where alpha[i] > 0 && union[i] == 0 {
+            alpha[i] *= 1 - seam.keep[i]
+            rho[i] = min(rho[i], alpha[i])
+        }
+        edits = seam.edit
+
         var result = original
         for channel in 0..<3 {
             let o = planes[channel]
-            var e = [Float](repeating: 0, count: count)
-            for i in 0..<count { e[i] = Float(edit.bytes[i * 4 + channel]) }
+            let e = edits[channel]
             let lowO = PlaneMath.normalisedBlur(o, weight: weight, width: side, height: side, sigma: tuning.detail)
             let lowE = PlaneMath.normalisedBlur(e, weight: weight, width: side, height: side, sigma: tuning.detail)
             for i in 0..<count where alpha[i] > 0 {

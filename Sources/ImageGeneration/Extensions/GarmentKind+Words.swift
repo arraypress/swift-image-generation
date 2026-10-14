@@ -36,8 +36,11 @@ public extension GarmentKind {
 
     /// The instruction for dressing the person on the left of a side-by-side
     /// edit in it, shown on the right (``ImageGenerator/edit(_:_:within:showing:seed:strength:allowText:steps:person:enlarge:progress:)``).
-    func instruction(noun: String? = nil, colour: String? = nil, longSleeves: Bool = false, sleeveless: Bool = false) -> String {
-        GarmentText.instruction(kind: self, noun: noun, colour: colour, longSleeves: longSleeves, sleeveless: sleeveless)
+    /// `striped` (``ReferenceFraming/isStriped(_:mask:)``) names the stripes and asks for them as wide as shown.
+    func instruction(noun: String? = nil, colour: String? = nil, longSleeves: Bool = false, sleeveless: Bool = false,
+                     striped: Bool = false) -> String {
+        GarmentText.instruction(kind: self, noun: noun, colour: colour, longSleeves: longSleeves, sleeveless: sleeveless,
+                                striped: striped)
     }
 
     /// Whether a garment has long sleeves, from its box's top and bottom rows
