@@ -59,6 +59,16 @@ enum RecipeRules {
         return isBefore(version, "0.9.0") ? nil : strength
     }
 
+    /// Whether a replay frames its references around their subjects: not when
+    /// the recipe says `references_full`, nor for a recipe written before
+    /// imagine 0.15.0, which sent every reference whole — so it replays as it drew.
+    static func framesReferences(_ recipe: ImageRecipe) -> Bool {
+        if recipe.inputs?.referencesFull == true { return false }
+        guard let tool = recipe.provenance?.tool,
+              let version = tool.split(separator: " ").last.map(String.init) else { return true }
+        return !isBefore(version, "0.15.0")
+    }
+
     /// Whether dotted version `a` sorts before `b`, numerically per part.
     static func isBefore(_ a: String, _ b: String) -> Bool {
         let left = a.split(separator: ".").map { Int($0) ?? 0 }
@@ -191,6 +201,8 @@ enum RecipeRules {
         case "inputs.replace": inputs.replace = try list(value, path: full)
         case "inputs.references": inputs.references = try list(value, path: full)
         case "inputs.mask_min_score": inputs.maskMinScore = try empty ? nil : number(value, path: full)
+        case "inputs.references_full": inputs.referencesFull = try empty ? nil : bool(value, path: full)
+        case "inputs.beside": inputs.beside = try empty ? nil : bool(value, path: full)
         default: throw .invalidRecipe("\(full) cannot be set")
         }
         recipe.inputs = inputs == ImageRecipe.Inputs() ? nil : inputs

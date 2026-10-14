@@ -141,19 +141,31 @@ public struct ImageRecipe: Codable, Sendable, Equatable {
         public var references: [String]?
         /// Ignore `only` / `replace` matches scoring below this, 0–1.
         public var maskMinScore: Double?
+        /// `true`: the references go in whole, as given. Left out, each is
+        /// framed around its subject first (``ReferenceFraming``) — since
+        /// imagine 0.15; a recipe written earlier replays unframed.
+        public var referencesFull: Bool?
+        /// `true`: the one reference goes beside the masked region in a
+        /// single picture (a side-by-side edit) instead of as a second picture.
+        public var beside: Bool?
 
         public init(edit: String? = nil, only: [String]? = nil, replace: [String]? = nil,
-                    references: [String]? = nil, maskMinScore: Double? = nil) {
+                    references: [String]? = nil, maskMinScore: Double? = nil, referencesFull: Bool? = nil,
+                    beside: Bool? = nil) {
             self.edit = edit
             self.only = only
             self.replace = replace
             self.references = references
             self.maskMinScore = maskMinScore
+            self.referencesFull = referencesFull
+            self.beside = beside
         }
 
         enum CodingKeys: String, CodingKey, CaseIterable {
             case edit, only, replace, references
             case maskMinScore = "mask_min_score"
+            case referencesFull = "references_full"
+            case beside
         }
     }
 

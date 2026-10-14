@@ -146,4 +146,22 @@ struct RecipeTests {
         #expect(recipe.effectiveStrength == nil)
         #expect(RecipeRules.isBefore("0.8.9", "0.9.0") && !RecipeRules.isBefore("0.9", "0.9.0"))
     }
+
+    @Test("References are framed on replay only for recipes written once framing existed (0.15.0)")
+    func framingByVersion() throws {
+        var recipe = ImageRecipe(prompt: .init(text: "a fox"), inputs: .init(references: ["mug.png"]),
+                                 provenance: .init(tool: "imagine 0.14.0"))
+        #expect(!recipe.framesReferences)
+        recipe.provenance = .init(tool: "imagine 0.15.0")
+        #expect(recipe.framesReferences)
+        recipe.provenance = nil
+        #expect(recipe.framesReferences)
+        recipe = try recipe.setting("references_full", to: "true")
+        #expect(!recipe.framesReferences)
+        recipe = try recipe.setting("beside", to: "yes")
+        #expect(recipe.inputs?.beside == true)
+        let json = String(decoding: try recipe.encoded(), as: UTF8.self)
+        #expect(json.contains("\"references_full\" : true") && json.contains("\"beside\" : true"))
+        #expect(try ImageRecipe.decode(Data(json.utf8)) == recipe)
+    }
 }

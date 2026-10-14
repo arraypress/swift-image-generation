@@ -326,6 +326,52 @@ and the face fix (`fixFaces(…person:)`) take a person. An older export whose e
 no slot refuses a person with references, by name. ``LoRASlotCheck`` loads a slot transformer and
 checks its inputs against `slot.json`.
 
+## Dressing, framing, other words (0.13)
+
+```swift
+// A garment onto a person: the region and the garment in ONE picture, side by side.
+let kind = GarmentKind.classify(scores, minimum: 0.6)            // SAM 3 scores of each kind's classWord
+let garment = try ReferenceFraming.frame(shirtPhoto, mask: shirtMask, square: false)   // cut to it, on white
+let dressed = try await editor.edit(person, kind!.instruction(longSleeves: true),
+                                    within: [tshirtMask, armMask], showing: garment.image, seed: 7)
+dressed.report.untouchedMaxDifference    // 0: every pixel outside the masks is the person's own
+
+// A reference on a plain background, cut to its subject before it goes in.
+let framed = try ReferenceFraming.frame(productShot)   // Vision's subject; a busy picture comes back unchanged
+RegionMask.candidates(for: "t-shirt")    // ["t-shirt", "tshirt", "top", "shirt", "tee", "blouse"]
+```
+
+- **Side-by-side edit** (`edit(_:_:within:showing:…)`). FLUX.2 Klein shares its reference room
+  between the pictures it is given, so `edit(…references:)` sees each at a fraction of its resolution
+  and fine patterns die: a red-and-white striped top put on a person came back with every other white
+  band washed pink, whatever was tried — a tighter reference, `steps: 8`, a grey-filled source, a
+  second pass at lower strength (worse: blurred). Drawn from the reference alone the same top was
+  crisp. So the photo's region (the masks' box plus 15%, 0.625 as wide as tall) goes on the left of
+  one 1024 × 1024 picture and the thing on white on the right; the edit is told to dress the left from
+  the right; the left panel goes back through the masks like any masked edit (untouched pixels: 0).
+  The instruction must speak of the two sides — `GarmentKind.instruction(…)` does.
+- **`ReferenceFraming.frame`** cuts a picture to its subject (a mask you pass, or Vision's
+  foreground) and sets it on white — square for `references:` (FLUX centre-crops references square),
+  its own shape with `square: false` (a side-by-side panel fits it whole). Only a **plain
+  background** is framed: the border's mean OKLab distance from its own average must be ≤ 4. Measured:
+  product shots and garments on white 0.0–1.7; studio portraits on a grey sweep 8.0–9.9, a painting
+  9.7, rooms 8.7–21.5, the macOS stock photos 16–30. A subject spanning ≥ 90% of the picture is left
+  alone when squaring (nothing to gain).
+- **`RegionMask.candidates(for:)` / `chooseWord`** — other words for a mask name. SAM 3 scored a grey
+  t-shirt < 0.6 as "t-shirt" but 0.99 as "tshirt", a navy blazer 0.40 as "jacket" and 0.97 as
+  "blazer". The word as asked wins whenever it passes; else the best other that passes; never one
+  below the floor.
+- **`GarmentKind`** — top, outerwear, dress, skirt, trousers, shorts, shoes, hat: `classify` (one SAM 3
+  word per kind; a near-tie within 0.03 goes to the more particular kind — measured on six garment
+  pictures, all right), `regions(sleeved:)` (where it goes on a person: the arm too for sleeves),
+  `longSleeves(…)` (the sleeves reach ≥ 60% down the garment), `instruction(…)`.
+- **`ReferenceFraming.colourWords`** — a garment's colour in everyday words (k-means in OKLab; neutrals
+  named among neutrals, so a white stripe is never "cream"). Naming one colour helped (a mustard
+  jacket ΔE 3.5 against 5.4); naming two hurt — "red and white" without "striped" made a striped top
+  plain red — so callers should name a garment's colour only when it has one.
+- `ImageRecipe.Inputs` gains `references_full` and `beside`; a recipe written before imagine 0.15
+  replays with its references whole (`framesReferences`), as it drew.
+
 ## Testing
 
 `swift test` runs prompts, seeds, cropping, export recognition, provenance (PNG/JPEG/HEIC) and the
