@@ -20,8 +20,12 @@
 //  its `key@outdoors:` wording. A value typed that the slot does not know
 //  goes into the prompt as typed, with no tag.
 //
+//  The slot line is imagine's own; checking values, finding known ones and
+//  filling markers are RecipeKit's ``SlotFilling``, shared with song.
+//
 
 import Foundation
+import RecipeKit
 
 enum StyleSlots {
 
@@ -65,92 +69,35 @@ enum StyleSlots {
     }
 
     /// Lower-case letters, digits and hyphens, starting with a letter: `room`, `wall-colour`.
-    static func isName(_ text: String) -> Bool {
-        text.range(of: "^[a-z][a-z0-9-]*$", options: .regularExpression) != nil
-    }
+    static func isName(_ text: String) -> Bool { SlotFilling.isName(text) }
 
     /// The names of every `{marker}` in `text`, in order: "{subject} in a {room}" → subject, room.
-    static func markers(in text: String) -> [String] {
-        // A scan, not a Regex: it runs over every scene each time the
-        // catalogue loads, and Swift's Regex made `imagine styles` take a second.
-        guard text.contains("{") else { return [] }
-        var names: [String] = []
-        var open: String?
-        for character in text {
-            if character == "{" {
-                open = ""
-            } else if character == "}" {
-                if let name = open { names.append(name) }
-                open = nil
-            } else {
-                open?.append(character)
-            }
-        }
-        return names
-    }
+    static func markers(in text: String) -> [String] { SlotFilling.markers(in: text) }
 
     // MARK: Values
 
     /// How a value is compared: case, hyphens, underscores and repeated
     /// spaces ignored, so `Walk-in closet` finds `walk in closet`.
-    static func key(_ value: String) -> String {
-        value.lowercased()
-            .replacingOccurrences(of: "-", with: " ")
-            .replacingOccurrences(of: "_", with: " ")
-            .split(separator: " ").joined(separator: " ")
-    }
+    static func key(_ value: String) -> String { SlotFilling.key(value) }
 
     /// A caller's values checked against a style's slots: every name must be
     /// a slot's and every value non-empty. Returns a value for every slot —
     /// the caller's, or the default — keyed by slot name.
     static func resolved(_ values: [String: String], for slots: [StyleSlot], style: String)
         throws(ImageGenerationError) -> [String: String] {
-        var result: [String: String] = [:]
-        for (name, value) in values {
-            let wanted = name.trimmingCharacters(in: .whitespaces).lowercased()
-            guard slots.contains(where: { $0.name == wanted }) else {
-                throw .invalidStyleValue(slots.isEmpty
-                    ? "\(style) has no slots to fill; \(wanted) is not one"
-                    : "\(style) has no slot \"\(wanted)\"; its slots: \(slots.map(\.name).joined(separator: ", "))")
-            }
-            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else {
-                throw .invalidStyleValue("\(wanted) needs a value; \(style)'s default is \(defaultOf(wanted, in: slots))")
-            }
-            result[wanted] = trimmed
+        do { return try SlotFilling.resolved(values, for: slots, style: style) } catch {
+            throw .invalidStyleValue(error.errorDescription ?? "\(error)")
         }
-        for slot in slots where result[slot.name] == nil { result[slot.name] = slot.defaultValue }
-        return result
-    }
-
-    static func defaultOf(_ name: String, in slots: [StyleSlot]) -> String {
-        slots.first { $0.name == name }?.defaultValue ?? ""
     }
 
     /// The known value a typed one names — by its name or an alias — or `nil`.
-    static func known(_ value: String, in slot: StyleSlot) -> StyleSlot.Value? {
-        let wanted = key(value)
-        return slot.known.first { $0.names.contains { key($0) == wanted } }
-    }
+    static func known(_ value: String, in slot: StyleSlot) -> StyleSlot.Value? { SlotFilling.known(value, in: slot) }
 
     /// The words a value puts in the prompt: a known value's phrase, or the value as typed.
-    static func text(of value: String, in slot: StyleSlot) -> String {
-        known(value, in: slot)?.text ?? value
-    }
-
-    /// The value in use for each slot: the given one, or the default.
-    static func inUse(_ values: [String: String], for slots: [StyleSlot]) -> [(StyleSlot, String)] {
-        slots.map { slot in
-            let given = values.first { $0.key.lowercased() == slot.name }?.value
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            return (slot, given.flatMap { $0.isEmpty ? nil : $0 } ?? slot.defaultValue)
-        }
-    }
+    static func text(of value: String, in slot: StyleSlot) -> String { SlotFilling.text(of: value, in: slot) }
 
     /// The tags the values in use carry: `["outdoors"]` for a garden.
-    static func tags(_ values: [String: String], for slots: [StyleSlot]) -> Set<String> {
-        Set(inUse(values, for: slots).flatMap { known($0.1, in: $0.0)?.tags ?? [] })
-    }
+    static func tags(_ values: [String: String], for slots: [StyleSlot]) -> Set<String> { SlotFilling.tags(values, for: slots) }
 
     /// The scenes (indices) for these tags: those marked `when:` one of
     /// them, or — when none is — the general scenes. Never empty.
@@ -161,19 +108,14 @@ enum StyleSlots {
         return general.isEmpty ? Array(scenes.indices) : general
     }
 
-    /// Every slot's text for these values; a missing or unknown name takes
-    /// the slot's default (callers check names with ``resolved(_:for:style:)``).
-    static func texts(_ values: [String: String], for slots: [StyleSlot]) -> [String: String] {
-        var texts: [String: String] = [:]
-        for (slot, value) in inUse(values, for: slots) { texts[slot.name] = text(of: value, in: slot) }
-        return texts
+    /// Every slot's text for these values, in slot order; a missing or unknown
+    /// name takes the slot's default (callers check names with ``resolved(_:for:style:)``).
+    static func texts(_ values: [String: String], for slots: [StyleSlot]) -> [(name: String, text: String)] {
+        SlotFilling.texts(values, for: slots)
     }
 
-    /// `text` with each `{name}` replaced by its text.
-    static func filled(_ text: String, with texts: [String: String]) -> String {
-        guard text.contains("{") else { return text }
-        var result = text
-        for (name, value) in texts { result = result.replacingOccurrences(of: "{\(name)}", with: value) }
-        return result
+    /// `text` with each `{name}` replaced by its text, slot by slot.
+    static func filled(_ text: String, with texts: [(name: String, text: String)]) -> String {
+        SlotFilling.filled(text, with: texts)
     }
 }

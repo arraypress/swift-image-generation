@@ -67,17 +67,6 @@ public extension ImageStyle {
     }
 }
 
-public extension StyleSlot {
-
-    /// The words a value puts in the prompt: a known value's phrase (its
-    /// name or an alias; case, hyphens and spacing ignored), otherwise the
-    /// value itself.
-    func text(for value: String) -> String { StyleSlots.text(of: value, in: self) }
-
-    /// The known value a typed one names, by name or alias; `nil` for a free value.
-    func value(named typed: String) -> Value? { StyleSlots.known(typed, in: self) }
-}
-
 public extension StyleScene {
 
     /// This scene as recipe prompt parts around `subject`.

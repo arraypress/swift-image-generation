@@ -1,5 +1,5 @@
 {
-  "originHash" : "c3cfc1de56e9f3e30506bae284a566784f58a5f4a0d97161ca5ce4c7c1d44909",
+  "originHash" : "5ce1ed111f3315061a15c803761811488c8d8ebcb5d111ea7df9f6d10a5e6529",
   "pins" : [
     {
       "identity" : "coreai-models",
@@ -62,6 +62,15 @@
       "state" : {
         "revision" : "4588064a20f3fc093c95f2f7d3359999bf30cae5",
         "version" : "2.5.1"
+      }
+    },
+    {
+      "identity" : "swift-recipe-kit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/arraypress/swift-recipe-kit.git",
+      "state" : {
+        "revision" : "27296d26519ec01a6ea214ab5cffa96ad5e971a0",
+        "version" : "0.1.0"
       }
     },
     {

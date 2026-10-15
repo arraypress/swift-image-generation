@@ -13,58 +13,11 @@
 //  choose the style's scenes and wording for that kind of value. Any other
 //  value goes into the prompt as typed.
 //
+//  The type is RecipeKit's, shared with song's styles; `text(for:)` and
+//  `value(named:)` come with it.
+//
 
-import Foundation
+import RecipeKit
 
 /// A gap in a style's scenes, written `{name}`, and what may fill it.
-public struct StyleSlot: Codable, Sendable, Equatable {
-
-    /// Lower-case, as written in the scenes and typed: `room`.
-    public let name: String
-
-    /// The value used when none is given: one of ``known``'s names.
-    public let defaultValue: String
-
-    /// The values this slot was written for, in listing order; the first is the default.
-    public let known: [Value]
-
-    public init(name: String, defaultValue: String, known: [Value]) {
-        self.name = name
-        self.defaultValue = defaultValue
-        self.known = known
-    }
-
-    /// The marker scenes use for this slot: `{room}`.
-    public var marker: String { "{\(name)}" }
-
-    /// One value a slot knows.
-    public struct Value: Codable, Sendable, Equatable {
-
-        /// As typed: `home office`.
-        public let name: String
-
-        /// What goes into the prompt, when it says more than the name:
-        /// "a home office with a desk facing the window, …".
-        public let phrase: String?
-
-        /// Other names that mean this value: `garden` for `outdoor garden`.
-        public let aliases: [String]?
-
-        /// What kind of value it is — `outdoors` — so a style can give it
-        /// its own scenes (`when: outdoors`) and wording (`look@outdoors:`).
-        public let tags: [String]?
-
-        public init(name: String, phrase: String? = nil, aliases: [String]? = nil, tags: [String]? = nil) {
-            self.name = name
-            self.phrase = phrase
-            self.aliases = aliases
-            self.tags = tags
-        }
-
-        /// The name and every alias.
-        public var names: [String] { [name] + (aliases ?? []) }
-
-        /// The words a prompt gets for this value.
-        public var text: String { phrase ?? name }
-    }
-}
+public typealias StyleSlot = RecipeKit.StyleSlot

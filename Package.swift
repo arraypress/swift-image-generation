@@ -16,6 +16,8 @@ let package = Package(
         // 1.0.0 with one change: exports may be non-square (image_width /
         // image_height in the metadata), which Apple's pipeline assumed away.
         .package(url: "https://github.com/arraypress/coreai-models.git", exact: "1.0.0-nonsquare.7"),
+        // Style slots, --var, strict recipe JSON and --set: the rules song shares.
+        .package(url: "https://github.com/arraypress/swift-recipe-kit.git", from: "0.1.0"),
     ],
     targets: [
         // NonisolatedNonsendingByDefault stays OFF: generation is seconds of
@@ -23,7 +25,10 @@ let package = Package(
         // caller's executor.
         .target(
             name: "ImageGeneration",
-            dependencies: [.product(name: "CoreAIDiffusion", package: "coreai-models")]),
+            dependencies: [
+                .product(name: "CoreAIDiffusion", package: "coreai-models"),
+                .product(name: "RecipeKit", package: "swift-recipe-kit"),
+            ]),
         .testTarget(name: "ImageGenerationTests", dependencies: ["ImageGeneration"]),
     ]
 )

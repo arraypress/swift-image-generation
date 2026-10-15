@@ -256,7 +256,7 @@ struct StyleTests {
         #expect(problems.contains { $0.contains("{colour} is not a slot") })
         #expect(problems.contains { $0.contains("belongs in who: only") })
         #expect(problems.contains { $0.contains("slot late comes twice or after a scene") })
-        #expect(problems.contains { $0.contains("slot unused is in no scene") })
+        #expect(problems.contains { $0.contains("slot unused is unused") })
     }
 
     @Test("A style decodes without slots, as one written before them")

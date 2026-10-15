@@ -39,6 +39,7 @@
 //
 
 import Foundation
+import RecipeKit
 
 enum StyleCatalog {
 
@@ -70,14 +71,14 @@ enum StyleCatalog {
         var shared: [String: String] = [:]
         var scenes: [StyleScene] = []
         var slots: [StyleSlot] = []
+        var names = Set<String>()
 
         func close() {
             guard let open = header else { return }
             if scenes.isEmpty { result.problems.append("\(open.name): no scenes") }
-            let used = Set(scenes.flatMap(markers))
-            for slot in slots where !used.contains(slot.name) {
-                result.problems.append("\(open.name): slot \(slot.name) is in no scene")
-            }
+            result.problems += StyleCatalogs.nameProblems(open.name, seen: &names)
+            let used = Set(scenes.flatMap(markers)).subtracting([StyleSlots.subjectName])
+            result.problems += StyleCatalogs.slotProblems(style: open.name, markers: used, slots: slots)
             let carried = Set(slots.flatMap { $0.known.flatMap { $0.tags ?? [] } })
             let wanted = Set(scenes.compactMap(\.when)).union(shared.keys.compactMap(tag(of:)))
             for tag in wanted.subtracting(carried).sorted() {
@@ -245,7 +246,7 @@ enum StyleCatalog {
     /// — takes a subject as its first detail when one is given, and no
     /// default subject when not: "a kitchen with …, with a green island, …".
     static func prompt(_ scene: StyleScene, subject: String, wear choice: WardrobeChoice,
-                       slots texts: [String: String] = [:]) -> ImageRecipe.Prompt {
+                       slots texts: [(name: String, text: String)] = []) -> ImageRecipe.Prompt {
         let fill = { (text: String) in StyleSlots.filled(text, with: texts) }
         let trimmed = subject.trimmingCharacters(in: .whitespacesAndNewlines)
         let takesSubject = scene.who.contains(StyleScene.subjectSlot)

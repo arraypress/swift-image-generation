@@ -198,6 +198,11 @@ identical `promptSent`. `avoid_text` left out means the model's default: FLUX.2 
 the others are told not to. Reading is strict on purpose: `JSONDecoder` ignores keys it does not
 know, so a misspelt `"lightning"` would otherwise vanish and the picture would quietly differ.
 
+The reader, the `--set` engine (`setting(_:to:)`), slot filling and `StyleSlot` are
+[swift-recipe-kit](https://github.com/arraypress/swift-recipe-kit)'s (0.13.2), shared with
+`song` and imported with this library; imagine keeps its format, field-kind table, composer and
+the slot line. One rule moved: a value of nothing but newlines clears a field, as spaces did.
+
 ## Styles (0.7; slots and interiors 0.12)
 
 173 built-in styles in 13 categories — 1,426 scenes — as Swift data (`ImageStyle.all`), not a
@@ -398,7 +403,8 @@ beside the SANA export) that 16:9 comes out 1344 × 768 and deterministic.
 ## Requirements
 
 macOS 27 / iOS 27 (Core AI), Swift 6.2. `coreai-models` — the arraypress fork of Apple's 1.0.0 (see
-above), pinned exactly to `1.0.0-nonsquare.7` (every shape, editing at any shape).
+above), pinned exactly to `1.0.0-nonsquare.7` (every shape, editing at any shape); swift-recipe-kit 0.1
+(Foundation only).
 
 ## Licence
 
