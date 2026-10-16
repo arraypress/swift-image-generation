@@ -56,10 +56,19 @@ public extension GenerationModel {
         self == .flux2Klein4B ? [.square, .landscape, .vertical, .classic, .classicTall, .photo, .photoTall] : []
     }
 
-    /// Whether to load the model's parts one at a time (`lowMemory`) on a Mac
-    /// with this much memory. Measured for 9B on 36 GB: one at a time took a
-    /// median ≈110 s at 4.1 GB peak, all at once 176 s under memory pressure.
+    /// Whether to load the model's parts one at a time (`lowMemory`, the lite
+    /// tier) on a Mac with this much memory. Measured for 9B on 36 GB: one at a
+    /// time took a median ≈110 s at 4.1 GB peak, all at once 176 s under memory
+    /// pressure. For 4B and SANA one at a time draws the same pixels in the same
+    /// time, and holds 14.6 GB resident at most instead of 20.3 GB (4B; SANA
+    /// 10.8 instead of 12.0), so every Mac under 24 GB loads them that way.
     func loadsPartsOneAtATime(physicalMemory: UInt64) -> Bool {
-        self == .flux2Klein9B && physicalMemory < 48 * 1_073_741_824
+        physicalMemory < Self.fullTierMemory(for: self)
+    }
+
+    /// The memory below which ``loadsPartsOneAtATime(physicalMemory:)`` says yes:
+    /// 48 GB for 9B, 24 GB for the others.
+    static func fullTierMemory(for model: GenerationModel) -> UInt64 {
+        (model == .flux2Klein9B ? 48 : 24) * 1_073_741_824
     }
 }

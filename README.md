@@ -23,9 +23,24 @@ prompts — FLUX.2 Klein 4B, SANA Sprint 0.6B and 1.6B, Z-Image Turbo and GLM-Im
 | per picture, loaded (1:1) | 19.1 s | 1.83 s |
 | 16:9 against 1:1, back to back | ~1.1–1.3× | ~1.7× (4.0 s vs 2.4 s) |
 | first picture in a fresh process | 46.6 s | 28.7 s |
-| peak memory | 8.6 GB (4.6 GB with `lowMemory`) | 3.0 GB |
+| peak memory (2026-10-11) | 8.6 GB (4.6 GB with `lowMemory`) | 3.0 GB |
+| memory, `imagine` 0.15.2, 1:1, 2026-10-16: footprint / most resident | 5.0 / 20.3 GB; `lowMemory` 4.2 / 14.6 GB | 2.7 / 12.0 GB; `lowMemory` 2.7 / 10.8 GB |
 | disk | 13 GB (+7.3 GB editing, +7.3 GB per extra shape) | 8.2 GB (+3.3 GB per extra shape) |
 | licence | Apache-2.0 | Apache-2.0 + MIT + Gemma Terms of Use |
+
+**Small Macs.** `loadsPartsOneAtATime(physicalMemory:)` — the lite tier — loads the text
+encoder, transformer and decoder one at a time on any Mac under 24 GB (48 GB for 9B).
+Measured through `imagine` with `/usr/bin/time -l`, three prompts at fixed seeds: one at a
+time drew **byte-identical** PNGs in the same time (48.8–65.0 s against 49.0–56.7 s for a
+first picture, load included) and SANA's too. Two numbers, because Core AI maps its compiled
+models from the cache: the *peak memory footprint* (memory the process owns: 5.0 GB all at
+once, 4.2 GB one at a time) and the *most resident* (that plus the mapped model pages it
+touched: 20.3 against 14.6 GB). The mapped pages are file-backed, so the OS can drop and
+re-read them, but they are what a small Mac has to hold while a part runs — hence 24 GB, not
+16, for all at once. Nothing was re-exported: an int8 export would shrink the download, but the
+published measurements of Apple's recipe show no lower peak, and these exports' compile cache
+(about 7 GB per FLUX shape, 3.3 GB per SANA shape) is unchanged by the tier. Not measured: a
+real 8 GB Mac.
 
 **FLUX.2 [klein] 9B** (0.3, `.flux2Klein9B`) is the opt-in third: on the same prompts a tie with 4B
 on photos, worse on an app icon, **clearly better at longer text**; about 2.3× slower (median ≈110 s

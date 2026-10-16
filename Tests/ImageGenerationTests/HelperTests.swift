@@ -108,7 +108,10 @@ struct CropAndBundleTests {
         let gb: UInt64 = 1_073_741_824
         #expect(GenerationModel.flux2Klein9B.loadsPartsOneAtATime(physicalMemory: 36 * gb))
         #expect(!GenerationModel.flux2Klein9B.loadsPartsOneAtATime(physicalMemory: 64 * gb))
-        #expect(!GenerationModel.flux2Klein4B.loadsPartsOneAtATime(physicalMemory: 16 * gb))
+        #expect(GenerationModel.flux2Klein4B.loadsPartsOneAtATime(physicalMemory: 16 * gb))
+        #expect(!GenerationModel.flux2Klein4B.loadsPartsOneAtATime(physicalMemory: 24 * gb))
+        #expect(GenerationModel.sanaSprint16B.loadsPartsOneAtATime(physicalMemory: 8 * gb))
+        #expect(!GenerationModel.sanaSprint16B.loadsPartsOneAtATime(physicalMemory: 36 * gb))
         #expect(ImageGenerationError.unsupportedModel("x").errorDescription?.contains("FLUX.2 [klein] 9B") == true)
     }
 
