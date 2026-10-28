@@ -20,7 +20,8 @@ enum BundleIdentity {
         }
         let source = (root["source"] as? [String: Any])?["hf_model_id"] as? String
         let name = root["name"] as? String ?? source ?? "unknown"
-        return try model(named: name, source: source, compression: root["compression"] as? String)
+        // Apple's exporter writes "none" as null, so an unquantized export records nothing.
+        return try model(named: name, source: source, compression: root["compression"] as? String ?? "none")
     }
 
     /// The model whose checkpoint is `source` (or ends in `name`) and, where two

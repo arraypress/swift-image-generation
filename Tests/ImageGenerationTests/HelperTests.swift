@@ -89,6 +89,9 @@ struct CropAndBundleTests {
         let flux3 = #""kind":"diffusion","name":"flux-3-image-klein","source":{"hf_model_id":"black-forest-labs/flux-3-image-klein"}"#
         #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":\"4bit\"}")) == .flux3Klein)
         #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":\"none\"}")) == .flux3KleinFull)
+        // What the exporter really writes for the bfloat16 export: no compression at all.
+        #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3)}")) == .flux3KleinFull)
+        #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":null}")) == .flux3KleinFull)
         #expect(throws: ImageGenerationError.unsupportedModel("flux-3-image-klein")) {
             try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":\"8bit\"}"))
         }
