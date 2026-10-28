@@ -85,6 +85,13 @@ struct CropAndBundleTests {
         // 9B is recognised from its own metadata — no renamed copy needed.
         let nine = try Fixture.bundle(#"{"kind":"diffusion","name":"FLUX.2-klein-9B","source":{"hf_model_id":"black-forest-labs/FLUX.2-klein-9B"}}"#)
         #expect(try BundleIdentity.model(at: nine) == .flux2Klein9B)
+        // FLUX.3's two exports share a checkpoint; the recorded compression tells them apart.
+        let flux3 = #""kind":"diffusion","name":"flux-3-image-klein","source":{"hf_model_id":"black-forest-labs/flux-3-image-klein"}"#
+        #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":\"4bit\"}")) == .flux3Klein)
+        #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":\"none\"}")) == .flux3KleinFull)
+        #expect(throws: ImageGenerationError.unsupportedModel("flux-3-image-klein")) {
+            try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":\"8bit\"}"))
+        }
         let small = try Fixture.bundle(#"{"kind":"diffusion","name":"Sana_Sprint_0.6B_1024px_diffusers","source":{"hf_model_id":"Efficient-Large-Model/Sana_Sprint_0.6B_1024px_diffusers"}}"#)
         #expect(throws: ImageGenerationError.unsupportedModel("Sana_Sprint_0.6B_1024px_diffusers")) { try BundleIdentity.model(at: small) }
         let segmenter = try Fixture.bundle(#"{"kind":"segmenter","name":"sam3"}"#)
@@ -93,7 +100,7 @@ struct CropAndBundleTests {
         #expect(throws: ImageGenerationError.notABundle(empty.path)) { try BundleIdentity.model(at: empty) }
     }
 
-    @Test("Only FLUX 4B edits; 9B is square-only, non-commercial, and loads parts one at a time under 48 GB")
+    @Test("Only FLUX 4B edits; 9B and FLUX.3 are square-only and non-commercial; 9B loads parts one at a time under 48 GB")
     func details() {
         #expect(GenerationModel.flux2Klein4B.supportsEditing)
         #expect(!GenerationModel.sanaSprint16B.supportsEditing)
@@ -104,7 +111,9 @@ struct CropAndBundleTests {
         #expect(ImageAspect.allCases.count == 8)
         #expect(GenerationModel.sanaSprint16B.aspects == [.square, .landscape, .vertical, .portrait])
         #expect(GenerationModel.flux2Klein9B.aspects == [.square])
-        #expect(GenerationModel.allCases.filter(\.isNonCommercial) == [.flux2Klein9B])
+        #expect(GenerationModel.flux3Klein.aspects == [.square] && GenerationModel.flux3KleinFull.aspects == [.square])
+        #expect(!GenerationModel.flux3Klein.supportsEditing && GenerationModel.flux3KleinFull.editAspects.isEmpty)
+        #expect(GenerationModel.allCases.filter(\.isNonCommercial) == [.flux2Klein9B, .flux3Klein, .flux3KleinFull])
         let gb: UInt64 = 1_073_741_824
         #expect(GenerationModel.flux2Klein9B.loadsPartsOneAtATime(physicalMemory: 36 * gb))
         #expect(!GenerationModel.flux2Klein9B.loadsPartsOneAtATime(physicalMemory: 64 * gb))

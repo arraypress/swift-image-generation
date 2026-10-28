@@ -45,10 +45,10 @@ enum RecipeRules {
     }
 
     /// Whether the model draws text: what the recipe says, or the model's
-    /// default — FLUX.2 Klein 9B is the model chosen for its text.
+    /// default — FLUX.2 Klein 9B and FLUX.3 Klein are the models chosen for their text.
     static func drawsText(_ recipe: ImageRecipe) -> Bool {
         if let avoid = recipe.prompt.avoidText { return !avoid }
-        return recipe.settings.model == GenerationModel.flux2Klein9B.rawValue
+        return recipe.settings.model.flatMap(GenerationModel.init(rawValue:))?.drawsTextByDefault ?? false
     }
 
     /// The strength a replay should use. Before imagine 0.9.0 the pipeline never read

@@ -13,6 +13,8 @@ public extension GenerationModel {
         case .flux2Klein4B: "FLUX.2 [klein] 4B"
         case .sanaSprint16B: "SANA Sprint 1.6B"
         case .flux2Klein9B: "FLUX.2 [klein] 9B"
+        case .flux3Klein: "FLUX.3 [klein] 4-bit"
+        case .flux3KleinFull: "FLUX.3 [klein]"
         }
     }
 
@@ -22,14 +24,34 @@ public extension GenerationModel {
         case .flux2Klein4B: "black-forest-labs/FLUX.2-klein-4B"
         case .sanaSprint16B: "Efficient-Large-Model/Sana_Sprint_1.6B_1024px_diffusers"
         case .flux2Klein9B: "black-forest-labs/FLUX.2-klein-9B"
+        case .flux3Klein, .flux3KleinFull: "black-forest-labs/flux-3-image-klein"
         }
     }
 
-    /// Whether the model's licence forbids commercial use (FLUX.2 Klein 9B:
-    /// FLUX Non-Commercial License v2.1, which also requires output to be
-    /// filtered or reviewed before it is shared). A caller should show those
-    /// terms and have them accepted before first use.
-    var isNonCommercial: Bool { self == .flux2Klein9B }
+    /// The `compression` an export's `metadata.json` records for this model, where
+    /// two models share a checkpoint; `nil` takes any.
+    var compression: String? {
+        switch self {
+        case .flux3Klein: "4bit"
+        case .flux3KleinFull: "none"
+        default: nil
+        }
+    }
+
+    /// Whether the model is FLUX.3 [klein], at either size.
+    var isFlux3: Bool { self == .flux3Klein || self == .flux3KleinFull }
+
+    /// Whether the model draws text unless told not to: FLUX.2 Klein 9B and
+    /// FLUX.3 Klein, the models chosen for their text. The others are told not
+    /// to, since they misspell.
+    var drawsTextByDefault: Bool { self == .flux2Klein9B || isFlux3 }
+
+    /// Whether the model's licence restricts commercial use (FLUX.2 Klein 9B:
+    /// FLUX Non-Commercial License v2.1; FLUX.3 Klein: FLUX Kommunity License
+    /// v1.0, whose output only a Qualifying User may use commercially). Both
+    /// require output to be filtered or reviewed before it is shared. A caller
+    /// should show those terms and have them accepted before first use.
+    var isNonCommercial: Bool { self == .flux2Klein9B || isFlux3 }
 
     /// Whether the model can edit an existing picture (image-to-image).
     var supportsEditing: Bool { self == .flux2Klein4B }
@@ -37,16 +59,23 @@ public extension GenerationModel {
     /// The step counts the model accepts. SANA Sprint is a 1–4-step model
     /// (its export defaults to 2, with a tuned midpoint); FLUX.2 Klein is
     /// step-distilled for 4 — fewer is rougher, more helps little — and runs
-    /// up to 28, where an undistilled FLUX would stop.
-    var stepRange: ClosedRange<Int> { self == .sanaSprint16B ? 1...4 : 1...28 }
+    /// up to 28, where an undistilled FLUX would stop. FLUX.3 Klein is a flow
+    /// map trained for 1–16 (4 measured as good as 16).
+    var stepRange: ClosedRange<Int> {
+        switch self {
+        case .sanaSprint16B: 1...4
+        case .flux3Klein, .flux3KleinFull: 1...16
+        default: 1...28
+        }
+    }
 
     /// The shapes this library's exports draw from text in: Klein 4B six (no
-    /// upright 3:4 or 2:3), SANA four, 9B the square only.
+    /// upright 3:4 or 2:3), SANA four, 9B and FLUX.3 the square only.
     var aspects: [ImageAspect] {
         switch self {
         case .flux2Klein4B: [.square, .landscape, .vertical, .portrait, .classic, .photo]
         case .sanaSprint16B: [.square, .landscape, .vertical, .portrait]
-        case .flux2Klein9B: [.square]
+        case .flux2Klein9B, .flux3Klein, .flux3KleinFull: [.square]
         }
     }
 

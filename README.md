@@ -50,6 +50,28 @@ Non-Commercial License v2.1, `isNonCommercial`): a caller shows the terms and ha
 output must be filtered or reviewed before it is shared. The export is recognised from its own
 `metadata.json` like the others.
 
+**FLUX.3 [klein]** (0.15, `.flux3Klein` and `.flux3KleinFull`) spells signs, menus and labels right
+first time and is the fastest FLUX here. Two exports of the same model, measured on a 36 GB M3 Max at
+1024 × 1024, 4 steps, whole command, display on:
+
+| | `.flux3Klein` (4-bit) | `.flux3KleinFull` (bfloat16) |
+|---|---|---|
+| one picture | **28–30 s** | 50–55 s |
+| peak memory | 6.3 GB | 19.5 GB |
+| disk | 5.0 GB | 16 GB |
+| text right, six sign/label/cover prompts, one seed | 5 / 6 | 6 / 6 |
+
+The 4-bit miss was a book cover's title, which the full export also misspelt on another seed: long or
+small titles are hard for both, a little harder at 4 bits. Four steps where diffusers runs 16: on text,
+faces, hands and crowds, 4 matched 8 and 16. An 8-bit export was measured and dropped (≈190 s a
+picture: Core AI retries a Neural Engine compile on every load). 1:1 only, no editing, and under the
+FLUX Kommunity License (`isNonCommercial`): non-commercial use and distribution, output usable
+commercially only by a Qualifying User, and filtered or reviewed before it is shared. The two are told
+apart by the `compression` their `metadata.json` records. Exported with the FLUX.3 recipe in
+[arraypress/coreai-models](https://github.com/arraypress/coreai-models) `1.0.0-nonsquare.8`; hosted
+at [arraypress/imagine-flux3-klein](https://huggingface.co/arraypress/imagine-flux3-klein) (4-bit at
+the top, bfloat16 in `full/`).
+
 Z-Image Turbo matched FLUX on quality at 13× the time; GLM-Image's only Core AI build is compiled
 for M4-class GPUs. Both exports are Apple's official recipe
 ([apple/coreai-models](https://github.com/apple/coreai-models), BSD-3), float16/bfloat16, no
@@ -61,7 +83,7 @@ job (the `imagine` CLI does it on first use).
 - **Eight shapes** (0.11): 1:1 (1024 × 1024), 16:9 (1344 × 768), 9:16 (768 × 1344), 4:5
   (896 × 1120), 4:3 (1152 × 864), 3:4, 3:2 (1248 × 832) and 2:3. `ImageAspect` names them;
   `GenerationModel.aspects` says which a model draws (FLUX 4B: 1:1, 16:9, 9:16, 4:5, 4:3, 3:2; SANA the
-  first four; 9B 1:1) and `editAspects` which it edits (FLUX 4B: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3).
+  first four; 9B and FLUX.3 1:1) and `editAspects` which it edits (FLUX 4B: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3).
   `ImageAspect.nearest(width:height:among:)` picks the shape nearest a photo's. FLUX's shapes live in
   `shapes/<shape>/` folders (`shapeFolder`): `metadata.json`, the autoencoder, and a transformer per
   mode, each a single-function export with the LoRA slot; SANA's in `aspect-16x9/` and the like.
@@ -209,8 +231,8 @@ try recipe.encoded().write(to: url)
 The prompt is either `text` or parts composed in a fixed order — subject, details, setting,
 lighting, camera, style, extra — joined with ", " (trailing punctuation on each part dropped). A
 recipe holding only `text` composes to exactly that text, so a typed prompt round-trips to the
-identical `promptSent`. `avoid_text` left out means the model's default: FLUX.2 Klein 9B draws text,
-the others are told not to. Reading is strict on purpose: `JSONDecoder` ignores keys it does not
+identical `promptSent`. `avoid_text` left out means the model's default: FLUX.2 Klein 9B and FLUX.3
+Klein draw text, the others are told not to. Reading is strict on purpose: `JSONDecoder` ignores keys it does not
 know, so a misspelt `"lightning"` would otherwise vanish and the picture would quietly differ.
 
 The reader, the `--set` engine (`setting(_:to:)`), slot filling and `StyleSlot` are

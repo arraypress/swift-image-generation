@@ -51,6 +51,9 @@ struct RecipeTests {
     func textDefaults() {
         #expect(ImageRecipe(prompt: .init(text: "a"), settings: .init(model: "flux2-klein-9b")).drawsText)
         #expect(!ImageRecipe(prompt: .init(text: "a"), settings: .init(model: "flux2-klein-4b")).drawsText)
+        #expect(ImageRecipe(prompt: .init(text: "a"), settings: .init(model: "flux3-klein")).drawsText)
+        #expect(ImageRecipe(prompt: .init(text: "a"), settings: .init(model: "flux3-klein-full")).drawsText)
+        #expect(!ImageRecipe(prompt: .init(text: "a", avoidText: true), settings: .init(model: "flux3-klein")).drawsText)
         #expect(!ImageRecipe(prompt: .init(text: "a")).drawsText)
         #expect(!ImageRecipe(prompt: .init(text: "a", avoidText: true), settings: .init(model: "flux2-klein-9b")).drawsText)
         #expect(ImageRecipe(prompt: .init(text: "a", avoidText: false)).drawsText)

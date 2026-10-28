@@ -20,12 +20,15 @@ enum BundleIdentity {
         }
         let source = (root["source"] as? [String: Any])?["hf_model_id"] as? String
         let name = root["name"] as? String ?? source ?? "unknown"
-        return try model(named: name, source: source)
+        return try model(named: name, source: source, compression: root["compression"] as? String)
     }
 
-    static func model(named name: String, source: String?) throws(ImageGenerationError) -> GenerationModel {
+    /// The model whose checkpoint is `source` (or ends in `name`) and, where two
+    /// share a checkpoint, whose ``GenerationModel/compression`` is `compression`.
+    static func model(named name: String, source: String?, compression: String? = nil) throws(ImageGenerationError) -> GenerationModel {
         for model in GenerationModel.allCases where source == model.sourceModel
             || model.sourceModel.hasSuffix("/" + name) {
+            if let expected = model.compression, expected != compression { continue }
             return model
         }
         throw .unsupportedModel(name)
