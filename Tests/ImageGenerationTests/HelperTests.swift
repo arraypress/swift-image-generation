@@ -87,11 +87,11 @@ struct CropAndBundleTests {
         #expect(try BundleIdentity.model(at: nine) == .flux2Klein9B)
         // FLUX.3's two exports share a checkpoint; the recorded compression tells them apart.
         let flux3 = #""kind":"diffusion","name":"flux-3-image-klein","source":{"hf_model_id":"black-forest-labs/flux-3-image-klein"}"#
-        #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":\"4bit\"}")) == .flux3Klein)
-        #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":\"none\"}")) == .flux3KleinFull)
+        #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":\"4bit\"}")) == .flux3KleinSmall)
+        #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":\"none\"}")) == .flux3Klein)
         // What the exporter really writes for the bfloat16 export: no compression at all.
-        #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3)}")) == .flux3KleinFull)
-        #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":null}")) == .flux3KleinFull)
+        #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3)}")) == .flux3Klein)
+        #expect(try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":null}")) == .flux3Klein)
         #expect(throws: ImageGenerationError.unsupportedModel("flux-3-image-klein")) {
             try BundleIdentity.model(at: Fixture.bundle("{\(flux3),\"compression\":\"8bit\"}"))
         }
@@ -114,9 +114,9 @@ struct CropAndBundleTests {
         #expect(ImageAspect.allCases.count == 8)
         #expect(GenerationModel.sanaSprint16B.aspects == [.square, .landscape, .vertical, .portrait])
         #expect(GenerationModel.flux2Klein9B.aspects == [.square])
-        #expect(GenerationModel.flux3Klein.aspects == [.square] && GenerationModel.flux3KleinFull.aspects == [.square])
-        #expect(!GenerationModel.flux3Klein.supportsEditing && GenerationModel.flux3KleinFull.editAspects.isEmpty)
-        #expect(GenerationModel.allCases.filter(\.isNonCommercial) == [.flux2Klein9B, .flux3Klein, .flux3KleinFull])
+        #expect(GenerationModel.flux3KleinSmall.aspects == [.square] && GenerationModel.flux3Klein.aspects == [.square])
+        #expect(!GenerationModel.flux3KleinSmall.supportsEditing && GenerationModel.flux3Klein.editAspects.isEmpty)
+        #expect(GenerationModel.allCases.filter(\.isNonCommercial) == [.flux2Klein9B, .flux3Klein, .flux3KleinSmall])
         let gb: UInt64 = 1_073_741_824
         #expect(GenerationModel.flux2Klein9B.loadsPartsOneAtATime(physicalMemory: 36 * gb))
         #expect(!GenerationModel.flux2Klein9B.loadsPartsOneAtATime(physicalMemory: 64 * gb))

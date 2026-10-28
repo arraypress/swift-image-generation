@@ -13,8 +13,8 @@ public extension GenerationModel {
         case .flux2Klein4B: "FLUX.2 [klein] 4B"
         case .sanaSprint16B: "SANA Sprint 1.6B"
         case .flux2Klein9B: "FLUX.2 [klein] 9B"
-        case .flux3Klein: "FLUX.3 [klein] 4-bit"
-        case .flux3KleinFull: "FLUX.3 [klein]"
+        case .flux3Klein: "FLUX.3 [klein]"
+        case .flux3KleinSmall: "FLUX.3 [klein] 4-bit"
         }
     }
 
@@ -24,7 +24,7 @@ public extension GenerationModel {
         case .flux2Klein4B: "black-forest-labs/FLUX.2-klein-4B"
         case .sanaSprint16B: "Efficient-Large-Model/Sana_Sprint_1.6B_1024px_diffusers"
         case .flux2Klein9B: "black-forest-labs/FLUX.2-klein-9B"
-        case .flux3Klein, .flux3KleinFull: "black-forest-labs/flux-3-image-klein"
+        case .flux3Klein, .flux3KleinSmall: "black-forest-labs/flux-3-image-klein"
         }
     }
 
@@ -32,14 +32,14 @@ public extension GenerationModel {
     /// two models share a checkpoint; `nil` takes any.
     var compression: String? {
         switch self {
-        case .flux3Klein: "4bit"
-        case .flux3KleinFull: "none"
+        case .flux3Klein: "none"
+        case .flux3KleinSmall: "4bit"
         default: nil
         }
     }
 
     /// Whether the model is FLUX.3 [klein], at either size.
-    var isFlux3: Bool { self == .flux3Klein || self == .flux3KleinFull }
+    var isFlux3: Bool { self == .flux3Klein || self == .flux3KleinSmall }
 
     /// Whether the model draws text unless told not to: FLUX.2 Klein 9B and
     /// FLUX.3 Klein, the models chosen for their text. The others are told not
@@ -64,7 +64,7 @@ public extension GenerationModel {
     var stepRange: ClosedRange<Int> {
         switch self {
         case .sanaSprint16B: 1...4
-        case .flux3Klein, .flux3KleinFull: 1...16
+        case .flux3Klein, .flux3KleinSmall: 1...16
         default: 1...28
         }
     }
@@ -75,7 +75,7 @@ public extension GenerationModel {
         switch self {
         case .flux2Klein4B: [.square, .landscape, .vertical, .portrait, .classic, .photo]
         case .sanaSprint16B: [.square, .landscape, .vertical, .portrait]
-        case .flux2Klein9B, .flux3Klein, .flux3KleinFull: [.square]
+        case .flux2Klein9B, .flux3Klein, .flux3KleinSmall: [.square]
         }
     }
 

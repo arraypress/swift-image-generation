@@ -50,27 +50,33 @@ Non-Commercial License v2.1, `isNonCommercial`): a caller shows the terms and ha
 output must be filtered or reviewed before it is shared. The export is recognised from its own
 `metadata.json` like the others.
 
-**FLUX.3 [klein]** (0.15, `.flux3Klein` and `.flux3KleinFull`) spells signs, menus and labels right
-first time and is the fastest FLUX here. Two exports of the same model, measured on a 36 GB M3 Max at
-1024 × 1024, 4 steps, whole command, display on:
+**FLUX.3 [klein]** (0.15, `.flux3Klein` and `.flux3KleinSmall`) is the model for text. Two exports of
+the same model, measured through `imagine` on a 36 GB M3 Max at 1024 × 1024, 4 steps:
 
-| | `.flux3Klein` (4-bit) | `.flux3KleinFull` (bfloat16) |
+| | `.flux3Klein` (bfloat16) | `.flux3KleinSmall` (4-bit) |
 |---|---|---|
-| one picture | **28–30 s** | 50–55 s |
-| peak memory | 6.3 GB | 19.5 GB |
-| disk | 5.4 GB | 17 GB |
-| text right, six sign/label/cover prompts, one seed | 5 / 6 | 6 / 6 |
+| printed signs, labels, covers: six prompts, one seed | 6 / 6 | 5 / 6 |
+| chalk handwriting ("Today: tomato soup"), seeds 21–24 | **4 / 4** | 0 / 4 |
+| one picture, whole command | ≈80 s | 33–38 s |
+| each further picture in the same run | 27–32 s | — |
+| peak memory footprint / most resident | 6.1–7.7 GB / 23–24 GB | 13.3 GB / 6.3–8.6 GB |
+| disk | 17 GB | 5.4 GB |
 
-The 4-bit miss was a book cover's title, which the full export also misspelt on another seed: long or
-small titles are hard for both, a little harder at 4 bits. Four steps where diffusers runs 16: on text,
-faces, hands and crowds, 4 matched 8 and 16. An 8-bit export was measured and dropped (≈190 s a
-picture: Core AI retries a Neural Engine compile on every load). 1:1 only, no editing, and under the
-FLUX Kommunity License (`isNonCommercial`): non-commercial use and distribution, output usable
-commercially only by a Qualifying User, and filtered or reviewed before it is shared. The two are told
-apart by the `compression` their `metadata.json` records. Exported with the FLUX.3 recipe in
-[arraypress/coreai-models](https://github.com/arraypress/coreai-models) `1.0.0-nonsquare.8`; hosted
-at [arraypress/imagine-flux3-klein](https://huggingface.co/arraypress/imagine-flux3-klein) (4-bit at
-the top, bfloat16 in `full/`).
+At 4 bits the model still prints signs, but writes handwriting as near-letters ("yerunaoo" for
+"tomato"), so the bfloat16 export is the default and the 4-bit one is for drafts. Its weights stay
+in the files and are mapped from there (resident, not footprint); the 4-bit export's dequantized
+layers count as footprint. Four steps where diffusers runs 16: on text, faces, hands and crowds, 4
+matched 8 and 16. An 8-bit export was measured and dropped (≈190 s a picture: Core AI retries a
+Neural Engine compile on every load). 1:1 only, no editing, and under the FLUX Kommunity License
+(`isNonCommercial`): non-commercial use and distribution, output usable commercially only by a
+Qualifying User, and filtered or reviewed before it is shared. The two are told apart by the
+`compression` their `metadata.json` records — none (the exporter writes nothing) or `4bit`.
+Exported with the FLUX.3 recipe in [arraypress/coreai-models](https://github.com/arraypress/coreai-models)
+`1.0.0-nonsquare.8`; hosted at [arraypress/imagine-flux3-klein](https://huggingface.co/arraypress/imagine-flux3-klein)
+(bfloat16 in `full/`, 4-bit at the top).
+
+Core AI prints six compiler warnings to standard output each time it loads the 4-bit export; the
+generator points stdout at /dev/null while a model loads and runs, so a tool's JSON stays clean.
 
 Z-Image Turbo matched FLUX on quality at 13× the time; GLM-Image's only Core AI build is compiled
 for M4-class GPUs. Both exports are Apple's official recipe

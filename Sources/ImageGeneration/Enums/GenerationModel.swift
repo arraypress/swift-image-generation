@@ -12,8 +12,9 @@
 /// edits existing images; SANA Sprint 1.6B is about ten times faster. FLUX.2
 /// Klein 9B (2026-10-12) is the opt-in "quality" model: a tie with 4B on most
 /// prompts, clearly better at longer text, about 2.3× slower, non-commercial.
-/// FLUX.3 Klein (2026-10-28) spells signs, menus and labels right first time and,
-/// at 4 bits, is the fastest of the FLUX models: 28–30 s a picture.
+/// FLUX.3 Klein (2026-10-28) is the model for text: in bfloat16 it spelled
+/// printed signs and chalk handwriting right where the others garble them; at
+/// 4 bits it is quicker but garbles handwriting.
 public enum GenerationModel: String, Sendable, Codable, CaseIterable {
 
     /// Black Forest Labs' FLUX.2 [klein] 4B — quality, text-to-image and editing.
@@ -28,13 +29,14 @@ public enum GenerationModel: String, Sendable, Codable, CaseIterable {
     /// or reviewed before it is shared (``isNonCommercial``).
     case flux2Klein9B = "flux2-klein-9b"
 
-    /// Black Forest Labs' FLUX.3 [klein], weights at 4 bits — text right first
-    /// time, 28–30 s a picture on an M3 Max, 5 GB, square only, no editing.
-    /// FLUX Kommunity License: non-commercial, output filtered or reviewed
-    /// before it is shared (``isNonCommercial``).
+    /// Black Forest Labs' FLUX.3 [klein] in bfloat16 — the model for text:
+    /// signs, menus and handwriting spelled right, square only, no editing,
+    /// 17 GB. FLUX Kommunity License: non-commercial, output filtered or
+    /// reviewed before it is shared (``isNonCommercial``).
     case flux3Klein = "flux3-klein"
 
-    /// FLUX.3 [klein] in bfloat16 — the same model unquantized: a little surer
-    /// on long or small text, 50–55 s a picture, 16 GB.
-    case flux3KleinFull = "flux3-klein-full"
+    /// FLUX.3 [klein] with its weights at 4 bits, for quick drafts: about half
+    /// the time of the full model for one picture and 5.4 GB, but it garbles
+    /// handwriting the full model writes right.
+    case flux3KleinSmall = "flux3-klein-small"
 }

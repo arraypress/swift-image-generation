@@ -251,6 +251,6 @@ struct MaskedEditTests {
         #expect(GenerationModel.sanaSprint16B.stepRange == 1...4)
         #expect(GenerationModel.flux2Klein4B.stepRange.contains(4))
         #expect(!GenerationModel.flux2Klein4B.stepRange.contains(0))
-        #expect(GenerationModel.flux3Klein.stepRange == 1...16 && GenerationModel.flux3KleinFull.stepRange == 1...16)
+        #expect(GenerationModel.flux3KleinSmall.stepRange == 1...16 && GenerationModel.flux3Klein.stepRange == 1...16)
     }
 }
