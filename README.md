@@ -57,9 +57,9 @@ the same model, measured through `imagine` on a 36 GB M3 Max at 1024 × 1024, 4 
 |---|---|---|
 | printed signs, labels, covers: six prompts, one seed | 6 / 6 | 5 / 6 |
 | chalk handwriting ("Today: tomato soup"), seeds 21–24 | **4 / 4** | 0 / 4 |
-| one picture, whole command | ≈80 s | 33–38 s |
-| each further picture in the same run | 27–32 s | — |
-| peak memory footprint / most resident | 6.1–7.7 GB / 23–24 GB | 13.3 GB / 6.3–8.6 GB |
+| one picture, whole command | 77–98 s | 33–38 s |
+| each further picture in the same run | 25–32 s | — |
+| peak memory footprint / most resident | 6.1–7.7 GB / 23–26 GB | 13.3 GB / 6.3–8.6 GB |
 | disk | 17 GB | 5.4 GB |
 
 At 4 bits the model still prints signs, but writes handwriting as near-letters ("yerunaoo" for
