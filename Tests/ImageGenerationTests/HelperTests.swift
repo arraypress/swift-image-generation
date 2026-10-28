@@ -103,7 +103,7 @@ struct CropAndBundleTests {
         #expect(throws: ImageGenerationError.notABundle(empty.path)) { try BundleIdentity.model(at: empty) }
     }
 
-    @Test("Only FLUX 4B edits; 9B and FLUX.3 are square-only and non-commercial; 9B loads parts one at a time under 48 GB")
+    @Test("Only FLUX 4B edits; 9B is square-only; FLUX.3 draws 4B's shapes; 9B and FLUX.3 are non-commercial; 9B loads parts one at a time under 48 GB")
     func details() {
         #expect(GenerationModel.flux2Klein4B.supportsEditing)
         #expect(!GenerationModel.sanaSprint16B.supportsEditing)
@@ -114,7 +114,7 @@ struct CropAndBundleTests {
         #expect(ImageAspect.allCases.count == 8)
         #expect(GenerationModel.sanaSprint16B.aspects == [.square, .landscape, .vertical, .portrait])
         #expect(GenerationModel.flux2Klein9B.aspects == [.square])
-        #expect(GenerationModel.flux3KleinSmall.aspects == [.square] && GenerationModel.flux3Klein.aspects == [.square])
+        #expect(GenerationModel.flux3KleinSmall.aspects == GenerationModel.flux2Klein4B.aspects && GenerationModel.flux3Klein.aspects == GenerationModel.flux2Klein4B.aspects, "FLUX.3 draws every shape FLUX.2 4B does")
         #expect(!GenerationModel.flux3KleinSmall.supportsEditing && GenerationModel.flux3Klein.editAspects.isEmpty)
         #expect(GenerationModel.allCases.filter(\.isNonCommercial) == [.flux2Klein9B, .flux3Klein, .flux3KleinSmall])
         let gb: UInt64 = 1_073_741_824

@@ -39,8 +39,9 @@ public extension ImageAspect {
         }
     }
 
-    /// This shape's folder in a FLUX.2 Klein 4B export, e.g. `shapes/4x3`: its
-    /// autoencoder, `metadata.json`, and the transformers fetched for it.
+    /// This shape's folder in a FLUX export (FLUX.2 Klein 4B, FLUX.3 Klein),
+    /// e.g. `shapes/4x3`: its autoencoder, `metadata.json`, and the
+    /// transformers fetched for it.
     var shapeFolder: String { "shapes/" + rawValue.replacingOccurrences(of: ":", with: "x") }
 
     /// The shape among `candidates` nearest a picture's, by the logarithm of

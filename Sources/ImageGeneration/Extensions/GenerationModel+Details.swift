@@ -69,13 +69,14 @@ public extension GenerationModel {
         }
     }
 
-    /// The shapes this library's exports draw from text in: Klein 4B six (no
-    /// upright 3:4 or 2:3), SANA four, 9B and FLUX.3 the square only.
+    /// The shapes this library's exports draw from text in: FLUX.2 Klein 4B and
+    /// FLUX.3 Klein (both sizes) six (no upright 3:4 or 2:3), SANA four, 9B the
+    /// square only.
     var aspects: [ImageAspect] {
         switch self {
-        case .flux2Klein4B: [.square, .landscape, .vertical, .portrait, .classic, .photo]
+        case .flux2Klein4B, .flux3Klein, .flux3KleinSmall: [.square, .landscape, .vertical, .portrait, .classic, .photo]
         case .sanaSprint16B: [.square, .landscape, .vertical, .portrait]
-        case .flux2Klein9B, .flux3Klein, .flux3KleinSmall: [.square]
+        case .flux2Klein9B: [.square]
         }
     }
 

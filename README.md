@@ -67,13 +67,21 @@ At 4 bits the model still prints signs, but writes handwriting as near-letters (
 in the files and are mapped from there (resident, not footprint); the 4-bit export's dequantized
 layers count as footprint. Four steps where diffusers runs 16: on text, faces, hands and crowds, 4
 matched 8 and 16. An 8-bit export was measured and dropped (≈190 s a picture: Core AI retries a
-Neural Engine compile on every load). 1:1 only, no editing, and under the FLUX Kommunity License
+Neural Engine compile on every load). No editing yet, and under the FLUX Kommunity License
 (`isNonCommercial`): non-commercial use and distribution, output usable commercially only by a
 Qualifying User, and filtered or reviewed before it is shared. The two are told apart by the
 `compression` their `metadata.json` records — none (the exporter writes nothing) or `4bit`.
 Exported with the FLUX.3 recipe in [arraypress/coreai-models](https://github.com/arraypress/coreai-models)
 `1.0.0-nonsquare.8`; hosted at [arraypress/imagine-flux3-klein](https://huggingface.co/arraypress/imagine-flux3-klein)
 (bfloat16 in `full/`, 4-bit at the top).
+
+**FLUX.3 in every shape FLUX.2 4B draws** (0.16): 16:9, 9:16, 4:5, 4:3 and 3:2 beside 1:1, at both
+sizes, each in its own `shapes/<shape>/` folder (transformer, decoder, `metadata.json` naming the size;
+the text encoder shared two folders up) — 9.2 GB at bfloat16, 3.0 GB at 4 bits, fetched on first use.
+One file per shape, never one multi-function file: Core AI compiles every function of a file when it
+loads it (sixteen FLUX.2 functions compiled to 116 GB). Measured through `imagine`: a 4:3 kitchen at
+bfloat16 in 116 s with the first-load compile; a 9:16 poster at 4 bits in 54 s, "BLUE NOTE FRIDAY"
+spelled right; a 3:2 harbour at 4 bits in 44 s after a 3 GB first-use fetch.
 
 Core AI prints six compiler warnings to standard output each time it loads the 4-bit export; the
 generator points stdout at /dev/null while a model loads and runs
@@ -90,7 +98,7 @@ job (the `imagine` CLI does it on first use).
 - **Eight shapes** (0.11): 1:1 (1024 × 1024), 16:9 (1344 × 768), 9:16 (768 × 1344), 4:5
   (896 × 1120), 4:3 (1152 × 864), 3:4, 3:2 (1248 × 832) and 2:3. `ImageAspect` names them;
   `GenerationModel.aspects` says which a model draws (FLUX 4B: 1:1, 16:9, 9:16, 4:5, 4:3, 3:2; SANA the
-  first four; 9B and FLUX.3 1:1) and `editAspects` which it edits (FLUX 4B: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3).
+  first four; FLUX.3 the same six as FLUX 4B; 9B 1:1) and `editAspects` which it edits (FLUX 4B: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3).
   `ImageAspect.nearest(width:height:among:)` picks the shape nearest a photo's. FLUX's shapes live in
   `shapes/<shape>/` folders (`shapeFolder`): `metadata.json`, the autoencoder, and a transformer per
   mode, each a single-function export with the LoRA slot; SANA's in `aspect-16x9/` and the like.
