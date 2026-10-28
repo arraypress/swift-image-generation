@@ -58,7 +58,7 @@ first time and is the fastest FLUX here. Two exports of the same model, measured
 |---|---|---|
 | one picture | **28–30 s** | 50–55 s |
 | peak memory | 6.3 GB | 19.5 GB |
-| disk | 5.0 GB | 16 GB |
+| disk | 5.4 GB | 17 GB |
 | text right, six sign/label/cover prompts, one seed | 5 / 6 | 6 / 6 |
 
 The 4-bit miss was a book cover's title, which the full export also misspelt on another seed: long or
