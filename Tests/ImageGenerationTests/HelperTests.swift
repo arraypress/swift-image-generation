@@ -177,3 +177,47 @@ struct ProvenanceTests {
         #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 }
+
+@Suite("Standard output", .serialized)
+struct StandardOutputTests {
+
+    /// What reaches stdout while `body` runs, caught in a file.
+    private func caught(_ body: () async -> Void) async throws -> String {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("stdout-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: file) }
+        fflush(stdout)
+        let real = dup(STDOUT_FILENO)
+        let sink = open(file.path, O_WRONLY | O_CREAT | O_TRUNC, 0o600)
+        dup2(sink, STDOUT_FILENO)
+        close(sink)
+        await body()
+        fflush(stdout)
+        dup2(real, STDOUT_FILENO)
+        close(real)
+        return try String(contentsOf: file, encoding: .utf8)
+    }
+
+    @Test("Core AI's warnings go nowhere; stdout comes back after")
+    func silenced() async throws {
+        let out = try await caught {
+            await StandardOutput.silenced { print("warning: loc(fused…") }
+            print("[{\"seed\":21}]")
+        }
+        #expect(!out.contains("warning: loc"))
+        #expect(out.contains("[{\"seed\":21}]"))
+    }
+
+    @Test("Overlapping uses: stdout comes back only when the last one ends")
+    func overlapping() async throws {
+        let out = try await caught {
+            StandardOutput.divert()
+            StandardOutput.divert()
+            StandardOutput.restore()
+            print("still loading")
+            StandardOutput.restore()
+            print("the JSON")
+        }
+        #expect(!out.contains("still loading"))
+        #expect(out.contains("the JSON"))
+    }
+}

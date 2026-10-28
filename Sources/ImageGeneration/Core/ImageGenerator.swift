@@ -79,7 +79,8 @@ public final class ImageGenerator: Sendable {
         let config: DiffusionConfig
         do {
             config = try DiffusionBundle(at: bundle).config
-            pipeline = try await FlowTransformerPipeline(from: bundle)
+            // Core AI's load prints compiler warnings on stdout; see StandardOutput.
+            pipeline = try await StandardOutput.silenced { try await FlowTransformerPipeline(from: bundle) }
         } catch {
             throw .loadFailed(String(describing: error))
         }
@@ -257,10 +258,13 @@ public final class ImageGenerator: Sendable {
         let started = clock.now
         let images: [CGImage]
         do {
-            images = try await pipeline.generateImages(configuration: config) { step in
-                progress?(step.step, step.totalSteps)
-                return !Task.isCancelled
-            }.images
+            // Parts load here too when they load one at a time.
+            images = try await StandardOutput.silenced {
+                try await pipeline.generateImages(configuration: config) { step in
+                    progress?(step.step, step.totalSteps)
+                    return !Task.isCancelled
+                }.images
+            }
         } catch {
             if Task.isCancelled { throw .cancelled }
             throw .generationFailed(String(describing: error))
