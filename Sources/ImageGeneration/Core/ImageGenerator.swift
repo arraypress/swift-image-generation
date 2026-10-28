@@ -14,6 +14,7 @@
 
 import CoreAI
 import CoreAIDiffusionPipeline
+import StdoutSilencer
 import CoreGraphics
 import Foundation
 
@@ -79,7 +80,7 @@ public final class ImageGenerator: Sendable {
         let config: DiffusionConfig
         do {
             config = try DiffusionBundle(at: bundle).config
-            // Core AI's load prints compiler warnings on stdout; see StandardOutput.
+            // Core AI's load prints compiler warnings on stdout, where a tool's JSON goes.
             pipeline = try await StandardOutput.silenced { try await FlowTransformerPipeline(from: bundle) }
         } catch {
             throw .loadFailed(String(describing: error))

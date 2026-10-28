@@ -76,7 +76,8 @@ Exported with the FLUX.3 recipe in [arraypress/coreai-models](https://github.com
 (bfloat16 in `full/`, 4-bit at the top).
 
 Core AI prints six compiler warnings to standard output each time it loads the 4-bit export; the
-generator points stdout at /dev/null while a model loads and runs, so a tool's JSON stays clean.
+generator points stdout at /dev/null while a model loads and runs
+([swift-stdout-silencer](https://github.com/arraypress/swift-stdout-silencer)), so a tool's JSON stays clean.
 
 Z-Image Turbo matched FLUX on quality at 13× the time; GLM-Image's only Core AI build is compiled
 for M4-class GPUs. Both exports are Apple's official recipe

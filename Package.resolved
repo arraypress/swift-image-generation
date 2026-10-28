@@ -1,5 +1,5 @@
 {
-  "originHash" : "15c141c9e50020b9012962df7c34a74abcfd097f9bcf73c906cf2417abdc7a15",
+  "originHash" : "bf055bb9ef892d647907f7b24702a4fc209dd456e9f50339cd4e3b730fe9b7ec",
   "pins" : [
     {
       "identity" : "coreai-models",
@@ -70,6 +70,15 @@
       "location" : "https://github.com/arraypress/swift-recipe-kit.git",
       "state" : {
         "revision" : "27296d26519ec01a6ea214ab5cffa96ad5e971a0",
+        "version" : "0.1.0"
+      }
+    },
+    {
+      "identity" : "swift-stdout-silencer",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/arraypress/swift-stdout-silencer.git",
+      "state" : {
+        "revision" : "16d36efddd9149e9d50d6cf2262ef82340c69977",
         "version" : "0.1.0"
       }
     },

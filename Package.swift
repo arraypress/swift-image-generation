@@ -18,6 +18,8 @@ let package = Package(
         .package(url: "https://github.com/arraypress/coreai-models.git", exact: "1.0.0-nonsquare.8"),
         // Style slots, --var, strict recipe JSON and --set: the rules song shares.
         .package(url: "https://github.com/arraypress/swift-recipe-kit.git", from: "0.1.0"),
+        // Core AI prints compiler warnings to stdout while it loads a model.
+        .package(url: "https://github.com/arraypress/swift-stdout-silencer.git", from: "0.1.0"),
     ],
     targets: [
         // NonisolatedNonsendingByDefault stays OFF: generation is seconds of
@@ -28,6 +30,7 @@ let package = Package(
             dependencies: [
                 .product(name: "CoreAIDiffusion", package: "coreai-models"),
                 .product(name: "RecipeKit", package: "swift-recipe-kit"),
+                .product(name: "StdoutSilencer", package: "swift-stdout-silencer"),
             ]),
         .testTarget(name: "ImageGenerationTests", dependencies: ["ImageGeneration"]),
     ]
