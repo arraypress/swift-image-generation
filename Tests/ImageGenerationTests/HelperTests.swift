@@ -122,7 +122,7 @@ struct CropAndBundleTests {
         #expect(GenerationModel.flux3KleinSmall.supportsEditing && GenerationModel.flux3Klein.supportsEditing)
         #expect(GenerationModel.flux3Klein.editAspects == ImageAspect.allCases, "FLUX.3 edits in every shape")
         #expect(GenerationModel.flux3Klein.maximumReferences == 10 && GenerationModel.flux2Klein4B.maximumReferences == 4)
-        #expect(GenerationModel.isFlux3Size(width: 2048, height: 2048) && !GenerationModel.isFlux3Size(width: 2064, height: 2048))
+        #expect(GenerationModel.isFlux3Size(width: 2048, height: 2048) && GenerationModel.isFlux3Size(width: 3840, height: 2160), "up to 4K")
         #expect(!GenerationModel.isFlux3Size(width: 1000, height: 1024), "sides in multiples of 16")
         let phone = GenerationModel.flux3Size(fittingWidth: 4032, height: 3024)
         #expect(phone == (1152, 864), "a phone's 4:3 takes the named shape's exact size: \(phone)")
@@ -193,5 +193,30 @@ struct ProvenanceTests {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("x.tiff")
         #expect(throws: ImageGenerationError.self) { try picture.write(to: url, generator: "t") }
         #expect(!FileManager.default.fileExists(atPath: url.path))
+    }
+}
+
+@Suite("Naming a size's shape")
+struct AspectMatchingTests {
+
+    @Test("4K names 16:9, a named shape's own size names it, an odd shape names none")
+    func matching() {
+        #expect(ImageAspect.matching(width: 3840, height: 2160) == .landscape, "1.6% from FLUX's 1344 × 768")
+        #expect(ImageAspect.matching(width: 2880, height: 2880) == .square)
+        for aspect in ImageAspect.allCases {
+            #expect(ImageAspect.matching(width: aspect.size.width, height: aspect.size.height) == aspect)
+        }
+        #expect(ImageAspect.matching(width: 2000, height: 1100) == nil)
+        #expect(ImageAspect.matching(width: 3840, height: 2160, within: 0.01) == nil, "snapping stays at 1%")
+    }
+
+    @Test("4K is FLUX.3's ceiling: 3840 × 2160, or 2880 × 2880, sides up to 4096")
+    func flux3Ceiling() {
+        #expect(GenerationModel.isFlux3Size(width: 3840, height: 2160))
+        #expect(GenerationModel.isFlux3Size(width: 2880, height: 2880))
+        #expect(GenerationModel.isFlux3Size(width: 4096, height: 1024))
+        #expect(!GenerationModel.isFlux3Size(width: 2896, height: 2896), "past 4K's pixels")
+        #expect(!GenerationModel.isFlux3Size(width: 4112, height: 512), "a side past 4096")
+        #expect(!GenerationModel.isFlux3Size(width: 1000, height: 1000), "multiples of 16")
     }
 }

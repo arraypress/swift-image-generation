@@ -113,6 +113,20 @@ struct GarmentTests {
                                + "its stripes as many and as wide as shown, its sleeves down to the wrists. Keep"))
     }
 
+    @Test("FLUX.3's instruction names the pictures by order, never sides, and covers fit, light and what stays")
+    func flux3Instruction() {
+        let text = GarmentKind.outerwear.flux3Instruction(colour: "mustard", longSleeves: true)
+        #expect(text.hasPrefix("Dress the person in the first image in the mustard long-sleeved jacket from the second image"))
+        #expect(text.contains("its sleeves down to the wrists"))
+        #expect(text.contains("fitted naturally to their body and pose, with folds, light and shadows that match the photograph"))
+        #expect(text.hasSuffix("Keep their face, hair, pose, trousers and the background exactly as they are."))
+        #expect(!text.contains("left") && !text.contains("right"), "no side-by-side canvas: the garment is a second picture")
+        let striped = GarmentKind.top.flux3Instruction(colour: "red and white", striped: true)
+        #expect(striped.contains("red and white striped top") && striped.contains("its stripes as many and as wide as shown"))
+        let words = (50...150).contains(text.split(separator: " ").count)
+        #expect(words, "the 50–150 words FLUX.3 was trained on")
+    }
+
     @Test("Horizontal stripes are told from prints and plain cloth by how the lightness repeats")
     func stripes() {
         let (w, h) = (200, 240)

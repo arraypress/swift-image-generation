@@ -45,24 +45,31 @@ public extension GenerationModel {
     /// FLUX.2 Klein four (its traced reference route holds four quarter grids).
     var maximumReferences: Int { isFlux3 ? 10 : 4 }
 
-    /// Whether FLUX.3 can draw `width` × `height`: sides in multiples of 16, at
-    /// most 4 megapixels (2048 × 2048) in all — diffusers' bound.
+    /// The most pixels a FLUX.3 picture holds: 3840 × 2160 (8.3 megapixels, or 2880 × 2880
+    /// square), the largest measured — 18 minutes on a 36 GB Mac.
+    static let flux3MaximumPixels = 3840 * 2160
+
+    /// The longest side a FLUX.3 picture may have: its exports' VAE takes up to 4096.
+    static let flux3MaximumSide = 4096
+
+    /// Whether FLUX.3 can draw `width` × `height`: sides in multiples of 16 up to
+    /// ``flux3MaximumSide``, at most ``flux3MaximumPixels`` in all.
     static func isFlux3Size(width: Int, height: Int) -> Bool {
-        width > 0 && height > 0 && width % 16 == 0 && height % 16 == 0 && width * height <= 2048 * 2048
+        width > 0 && height > 0 && width % 16 == 0 && height % 16 == 0
+            && width <= flux3MaximumSide && height <= flux3MaximumSide && width * height <= flux3MaximumPixels
     }
 
     /// A FLUX.3 size of `width` × `height`'s shape holding about `pixels` pixels,
     /// sides in multiples of 16 — what an edit draws at unless told otherwise. A
     /// shape within 1% of a named one takes its size (a phone's 4:3 photo draws
-    /// at 1152 × 864); any other keeps its own. Never past 4 megapixels.
+    /// at 1152 × 864); any other keeps its own. Never past ``flux3MaximumPixels``.
     static func flux3Size(fittingWidth width: Int, height: Int, pixels: Int = 1024 * 1024) -> (width: Int, height: Int) {
         // A photo within 1% of a named shape takes that shape's exact size: a phone's 4:3 is
         // 1152 × 864, as `--aspect 4:3` draws, not 1184 × 880 from rounding each side alone.
-        let ratio = Double(width) / Double(max(1, height))
-        if pixels == 1024 * 1024, let named = ImageAspect.allCases.first(where: { abs(log($0.ratio / ratio)) < 0.01 }) {
+        if pixels == 1024 * 1024, let named = ImageAspect.matching(width: width, height: max(1, height), within: 0.01) {
             return named.size
         }
-        let target = Double(min(pixels, 2048 * 2048))
+        let target = Double(min(pixels, flux3MaximumPixels))
         let scale = (target / Double(max(1, width * height))).squareRoot()
         let fitted = (width: max(16, Int((Double(width) * scale / 16).rounded()) * 16),
                       height: max(16, Int((Double(height) * scale / 16).rounded()) * 16))

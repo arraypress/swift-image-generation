@@ -43,6 +43,14 @@ public extension GarmentKind {
                                 striped: striped)
     }
 
+    /// FLUX.3's instruction for putting the garment in the second image on the person in the
+    /// first (``ImageGenerator/edit(_:_:within:seed:strength:allowText:steps:references:person:side:enlarge:progress:)``).
+    func flux3Instruction(noun: String? = nil, colour: String? = nil, longSleeves: Bool = false, sleeveless: Bool = false,
+                          striped: Bool = false) -> String {
+        GarmentText.flux3Instruction(kind: self, noun: noun, colour: colour, longSleeves: longSleeves, sleeveless: sleeveless,
+                                     striped: striped)
+    }
+
     /// Whether a garment has long sleeves, from its box's top and bottom rows
     /// and its sleeves' lowest row on its own picture.
     static func longSleeves(garmentTop: Int, garmentBottom: Int, sleeveBottom: Int) -> Bool {

@@ -119,6 +119,23 @@ enum GarmentText {
         return Double(sleeveBottom - garmentTop) / height >= longSleeveReach
     }
 
+    /// What both instructions say of a garment: its noun, its full description ("mustard
+    /// striped long-sleeved jacket") and what else the person wears that must stay.
+    static func words(kind: GarmentKind, noun: String?, colour: String?, longSleeves: Bool, sleeveless: Bool,
+                      striped: Bool) -> (name: String, thing: String, rest: String) {
+        let name = noun ?? Self.noun(kind)
+        let cut = longSleeves ? "long-sleeved" : sleeveless && upperBody(kind) ? "sleeveless" : nil
+        let thing = [colour, striped ? "striped" : nil, cut, name].compactMap { $0 }.joined(separator: " ")
+        let rest: String
+        switch kind {
+        case .top, .outerwear: rest = "trousers"
+        case .dress: rest = "shoes"
+        case .skirt, .trousers, .shorts: rest = "top"
+        case .shoes, .hat: rest = "clothes"
+        }
+        return (name, thing, rest)
+    }
+
     /// The instruction for one dressing step, as a side-by-side edit sees
     /// it: the person on the left, the garment on the right. Names the
     /// garment's kind (and long sleeves), asks for its colours, pattern and
@@ -133,20 +150,27 @@ enum GarmentText {
     /// its colours named, 32% — seeds 11, 12, 13 in the README.
     static func instruction(kind: GarmentKind, noun: String? = nil, colour: String? = nil, longSleeves: Bool = false,
                             sleeveless: Bool = false, striped: Bool = false) -> String {
-        let name = noun ?? Self.noun(kind)
-        let cut = longSleeves ? "long-sleeved" : sleeveless && upperBody(kind) ? "sleeveless" : nil
-        let thing = [colour, striped ? "striped" : nil, cut, name].compactMap { $0 }.joined(separator: " ")
-        let rest: String
-        switch kind {
-        case .top, .outerwear: rest = "trousers"
-        case .dress: rest = "shoes"
-        case .skirt, .trousers, .shorts: rest = "top"
-        case .shoes, .hat: rest = "clothes"
-        }
+        let (name, thing, rest) = words(kind: kind, noun: noun, colour: colour, longSleeves: longSleeves,
+                                        sleeveless: sleeveless, striped: striped)
         return "Dress the person on the left in the \(thing) shown on the right, in place of what they are wearing there: "
             + "the same \(name), with exactly its colours, pattern and cut"
             + (striped ? ": its stripes as many and as wide as shown" : "")
             + (longSleeves ? ", its sleeves down to the wrists" : "")
             + ". Keep their face, hair, pose, \(rest) and the background exactly as they are. Leave the right side as it is."
+    }
+
+    /// FLUX.3's instruction for the same change: the person is the first image and the garment
+    /// the second, written out as FLUX.3 was trained to read — what changes, its end state and
+    /// its knock-on effects, then what stays.
+    static func flux3Instruction(kind: GarmentKind, noun: String? = nil, colour: String? = nil, longSleeves: Bool = false,
+                                 sleeveless: Bool = false, striped: Bool = false) -> String {
+        let (name, thing, rest) = words(kind: kind, noun: noun, colour: colour, longSleeves: longSleeves,
+                                        sleeveless: sleeveless, striped: striped)
+        return "Dress the person in the first image in the \(thing) from the second image, in place of what they are wearing there: "
+            + "the same \(name), with exactly its colours, pattern and cut"
+            + (striped ? ", its stripes as many and as wide as shown" : "")
+            + (longSleeves ? ", its sleeves down to the wrists" : "")
+            + ", fitted naturally to their body and pose, with folds, light and shadows that match the photograph. "
+            + "Keep their face, hair, pose, \(rest) and the background exactly as they are."
     }
 }

@@ -122,7 +122,7 @@ public final class ImageGenerator: Sendable {
     ///     ``loraSlot`` — put their ``Person/trigger`` in the prompt. With
     ///     references only when the slot ``LoRASlotLayout/coversEditing``.
     ///   - size: Width and height in pixels. FLUX.3 draws any shape: sides in
-    ///     multiples of 16, up to 4 megapixels in all; the others only their
+    ///     multiples of 16, up to 3840 × 2160 in all; the others only their
     ///     export's ``size``, the default.
     ///   - progress: Called after each denoising step with (step, steps).
     /// - Returns: The pictures, in seed order, at `size` (the export's ``size`` by default).
@@ -267,7 +267,7 @@ public final class ImageGenerator: Sendable {
             throw .invalidPrompt("\(model.displayName) draws \(size.width)×\(size.height) from this export; load the shape's export instead")
         }
         guard GenerationModel.isFlux3Size(width: asked.width, height: asked.height) else {
-            throw .invalidPrompt("FLUX.3 draws sides in multiples of 16 up to 4 megapixels; not \(asked.width)×\(asked.height)")
+            throw .invalidPrompt("FLUX.3 draws sides in multiples of 16 up to 4096, 3840 × 2160 pixels in all; not \(asked.width)×\(asked.height)")
         }
         return asked
     }

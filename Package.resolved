@@ -1,13 +1,13 @@
 {
-  "originHash" : "4c6cb0ca2834cd97789a78a6331d1f59efc38bb709b1be6722cd5e26c5ee4234",
+  "originHash" : "53896c936c127b189add41468cf7959599d8b7eb79307f9414b9e5e8808dae4e",
   "pins" : [
     {
       "identity" : "coreai-models",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/arraypress/coreai-models.git",
       "state" : {
-        "revision" : "4c65c11838c5cc60fd6332a4c7f2dc9d42af2d4d",
-        "version" : "1.0.0-nonsquare.10"
+        "revision" : "1ab01bd9412666875067eed809cc94c2e40bb57c",
+        "version" : "1.0.0-nonsquare.11"
       }
     },
     {

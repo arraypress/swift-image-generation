@@ -27,6 +27,15 @@ public extension ImageAspect {
     /// Width over height.
     var ratio: Double { Double(size.width) / Double(size.height) }
 
+    /// The named shape whose ratio is within `tolerance` of `width` × `height`'s, or `nil`.
+    /// The default 2% names 3840 × 2160 "16:9", though FLUX's own 16:9 size, 1344 × 768,
+    /// is 1.75 : 1; the nearest two named shapes (4:5 and 3:4) differ by 6.5%.
+    static func matching(width: Int, height: Int, within tolerance: Double = 0.02) -> ImageAspect? {
+        guard width > 0, height > 0 else { return nil }
+        let ratio = Double(width) / Double(height)
+        return allCases.first { abs(log($0.ratio / ratio)) < tolerance }
+    }
+
     /// The folder, inside a SANA export, holding this shape's transformer and
     /// decoder; `nil` for the square export at the top and for shapes SANA
     /// does not have.

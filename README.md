@@ -75,6 +75,20 @@ Exported with the FLUX.3 recipe in [arraypress/coreai-models](https://github.com
 `1.0.0-nonsquare.8` (shapes and editors with its `flux3_shapes` exporter, `nonsquare.9`); hosted at [arraypress/imagine-flux3-klein](https://huggingface.co/arraypress/imagine-flux3-klein)
 (bfloat16 in `full/`, 4-bit at the top).
 
+**FLUX.3 up to 4K, dressing on FLUX.3** (0.19): FLUX.3 draws and edits up to 3840 × 2160 (2880 × 2880
+square; sides up to 4096 — `GenerationModel.flux3MaximumPixels`, `flux3MaximumSide`), the largest
+measured: on an M3 Max (36 GB), 3840 × 2160 took about 18 min at bfloat16 and 16 min at 4 bits. Past
+4 megapixels the picture is decoded in overlapping 1024-pixel tiles (coreai-models
+`1.0.0-nonsquare.11`): one whole 3840 × 2160 decode alone took free memory from 57% to 4%; tiled, the
+run's low was 13%, and against a whole decode of the same picture the tiles differ only in fine
+texture, never at their edges. At 1 megapixel the 4K export draws bit-identically to the one it
+replaces. `GarmentKind.flux3Instruction(…)` writes the dressing instruction for FLUX.3 — the person
+the first image, the garment the second, fit, folds and light said — for the masked edit with the
+garment as a reference, `edit(_:_:within:…references:side:)`; `side` draws the region's square larger
+than the model's default (FLUX.3, up to 2048). Measured on a cardigan: FLUX.3 kept its patch pockets,
+which FLUX.2's side-by-side edit dropped; outside the masks every pixel stayed (difference 0).
+`ImageAspect.matching(width:height:)` names a size's shape within 2% (3840 × 2160 is 16:9).
+
 **FLUX.3 at any size, editing with up to ten pictures** (0.18): one export per FLUX.3 size draws and
 edits every shape — `generate(…size:)` and `edit(…size:)` take any width and height in multiples of 16
 up to 4 megapixels (`GenerationModel.isFlux3Size`); the others draw their export's size. The export
@@ -464,7 +478,7 @@ beside the SANA export) that 16:9 comes out 1344 × 768 and deterministic.
 ## Requirements
 
 macOS 27 / iOS 27 (Core AI), Swift 6.2. `coreai-models` — the arraypress fork of Apple's 1.0.0 (see
-above), pinned exactly to `1.0.0-nonsquare.10` (every shape, editing at any shape, FLUX.3 at any size); swift-recipe-kit 0.1
+above), pinned exactly to `1.0.0-nonsquare.11` (every shape, editing at any shape, FLUX.3 up to 4K); swift-recipe-kit 0.1
 (Foundation only).
 
 ## Licence

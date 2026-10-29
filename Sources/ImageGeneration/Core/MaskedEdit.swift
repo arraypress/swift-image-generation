@@ -72,20 +72,24 @@ public extension ImageGenerator {
     ///
     /// - Parameters:
     ///   - references: As for ``ImageGenerator/edit(_:_:seed:strength:allowText:steps:references:progress:)``.
+    ///   - side: The square's side to draw at — FLUX.3 draws any multiple of
+    ///     16 up to 2048; the model's own size when `nil`.
     ///   - enlarge: Called with the edit and the square's side when the
-    ///     square is larger than the model's; returns a picture at least
+    ///     square is larger than what was drawn; returns a picture at least
     ///     that large.
     /// - Returns: The result at `image`'s size, with the report and plan.
     func edit(_ image: CGImage, _ instruction: String, within masks: [RegionMask], seed: UInt32? = nil,
               strength: Float = 1, allowText: Bool = false, steps: Int? = nil,
-              references: [CGImage] = [], person: Person? = nil,
+              references: [CGImage] = [], person: Person? = nil, side: Int? = nil,
               enlarge: (@Sendable (CGImage, Int) async throws -> CGImage)? = nil,
               progress: (@Sendable (Int, Int) -> Void)? = nil)
         async throws(ImageGenerationError) -> (picture: GeneratedImage, report: MaskedEditReport, plan: MaskedEditPlan) {
         let plan = try MaskedEdit.plan(masks, imageWidth: image.width, imageHeight: image.height)
-        let square = try MaskedEdit.source(image, plan: plan, size: size.width)
+        let drawn = side ?? size.width
+        let square = try MaskedEdit.source(image, plan: plan, size: drawn)
         let made = try await edit(square, instruction, seed: seed, strength: strength, allowText: allowText,
-                                  steps: steps, references: references, person: person, progress: progress)
+                                  steps: steps, references: references, person: person,
+                                  size: side.map { ($0, $0) }, progress: progress)
         var back = made.image
         if plan.side > back.width, let enlarge {
             do { back = try await enlarge(made.image, plan.side) } catch {
