@@ -15,9 +15,10 @@ public extension ImageGenerator {
 
     /// A prompt as ``generate(_:seed:count:allowText:progress:)`` would take
     /// it — trimmed — or the reason it would refuse it. For checking input
-    /// before loading a model.
-    static func validatedPrompt(_ prompt: String) throws(ImageGenerationError) -> String {
-        try PromptText.validated(prompt)
+    /// before loading a model; `model` sets the length (FLUX.3 takes longer).
+    static func validatedPrompt(_ prompt: String,
+                                for model: GenerationModel = .flux2Klein4B) throws(ImageGenerationError) -> String {
+        try PromptText.validated(prompt, maximum: model.maximumPromptLength)
     }
 
     /// The seeds a run of `count` would use: `start` (random when `nil`) and

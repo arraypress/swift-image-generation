@@ -127,7 +127,7 @@ public final class ImageGenerator: Sendable {
     public func generate(_ prompt: String, seed: UInt32? = nil, count: Int = 1, allowText: Bool = false,
                          steps: Int? = nil, references: [CGImage] = [], person: Person? = nil,
                          progress: (@Sendable (Int, Int) -> Void)? = nil) async throws(ImageGenerationError) -> [GeneratedImage] {
-        let text = try PromptText.validated(prompt)
+        let text = try PromptText.validated(prompt, maximum: model.maximumPromptLength)
         guard (1...Self.maximumCount).contains(count) else { throw .invalidCount(count) }
         let stepCount = try resolvedSteps(steps)
         let extra = try checkedReferences(references, besides: 0)
@@ -145,7 +145,12 @@ public final class ImageGenerator: Sendable {
         return pictures
     }
 
-    /// Changes a picture as `instruction` says — FLUX.2 Klein only.
+    /// Changes a picture as `instruction` says — FLUX.2 Klein 4B or FLUX.3 Klein.
+    ///
+    /// FLUX.3 takes the instruction as written: a short request ("make the mug
+    /// blue") or the full instruction or box record its prompt upsampler would
+    /// write — measured, a short "remove the notebook" left the notebook, the
+    /// written instruction removed it. Its `strength` is always 1.
     ///
     /// The source is trimmed to this export's shape around its centre first (the
     /// model works at a fixed size and would otherwise stretch it); load the export
@@ -176,7 +181,12 @@ public final class ImageGenerator: Sendable {
         let extra = try checkedReferences(references, besides: 1)
         let slotInputs = try personInputs(person, editing: true)
         guard strength > 0, strength <= 1 else { throw .invalidPrompt("Strength is more than 0 and at most 1") }
-        let text = try PromptText.validated(instruction)
+        // FLUX.3 edits from noise with the picture as a reference, as it was trained to;
+        // starting from the picture itself is FLUX.2's.
+        guard !model.isFlux3 || strength == 1 else {
+            throw .invalidPrompt("FLUX.3 redraws from noise with the picture as a reference; strength is FLUX.2's")
+        }
+        let text = try PromptText.validated(instruction, maximum: model.maximumPromptLength)
         let stepCount = try resolvedSteps(steps)
         let sent = PromptText.composed(text, allowText: allowText)
         let picture = SeedPlan.seeds(start: seed, count: 1)[0]
@@ -200,10 +210,10 @@ public final class ImageGenerator: Sendable {
     /// Throws unless this model and export can take a picture in.
     private func requireEditing() throws(ImageGenerationError) {
         guard model.supportsEditing else {
-            throw .editingUnavailable("\(model.displayName) cannot edit pictures; FLUX.2 Klein 4B can")
+            throw .editingUnavailable("\(model.displayName) cannot edit pictures; FLUX.2 Klein 4B and FLUX.3 Klein can")
         }
         guard supportsEditing else {
-            throw .editingUnavailable("This FLUX.2 Klein export has no editing parts for \(size.width)×\(size.height) "
+            throw .editingUnavailable("This \(model.displayName) export has no editing parts for \(size.width)×\(size.height) "
                                       + "(an img2img transformer function and a VAEEncoder)")
         }
     }

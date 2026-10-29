@@ -53,8 +53,15 @@ public extension GenerationModel {
     /// should show those terms and have them accepted before first use.
     var isNonCommercial: Bool { self == .flux2Klein9B || isFlux3 }
 
-    /// Whether the model can edit an existing picture (image-to-image).
-    var supportsEditing: Bool { self == .flux2Klein4B }
+    /// Whether the model can edit an existing picture (image-to-image):
+    /// FLUX.2 Klein 4B, and FLUX.3 Klein at either size.
+    var supportsEditing: Bool { self == .flux2Klein4B || isFlux3 }
+
+    /// The longest prompt accepted, in characters. FLUX.3's text window holds
+    /// 1,040 tokens — an edit record with its box table runs past the others'
+    /// 2,000 characters — and its pipeline refuses, never cuts, a prompt past
+    /// the window.
+    var maximumPromptLength: Int { isFlux3 ? 6000 : 2000 }
 
     /// The step counts the model accepts. SANA Sprint is a 1–4-step model
     /// (its export defaults to 2, with a tuned midpoint); FLUX.2 Klein is
@@ -80,10 +87,10 @@ public extension GenerationModel {
         }
     }
 
-    /// The shapes this library's exports edit in: Klein 4B seven — the shapes
-    /// photos come in (no 4:5) — and the others none.
+    /// The shapes this library's exports edit in: FLUX.2 Klein 4B and FLUX.3
+    /// seven — the shapes photos come in (no 4:5) — and the others none.
     var editAspects: [ImageAspect] {
-        self == .flux2Klein4B ? [.square, .landscape, .vertical, .classic, .classicTall, .photo, .photoTall] : []
+        supportsEditing ? [.square, .landscape, .vertical, .classic, .classicTall, .photo, .photoTall] : []
     }
 
     /// Whether to load the model's parts one at a time (`lowMemory`, the lite

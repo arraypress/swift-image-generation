@@ -24,11 +24,15 @@ enum PromptText {
     static let maximumLength = 2000
 
     /// A usable prompt, trimmed, or an error saying why not.
-    static func validated(_ prompt: String) throws(ImageGenerationError) -> String {
+    ///
+    /// - Parameter maximum: The longest accepted, in characters — FLUX.3 takes
+    ///   more (``GenerationModel/maximumPromptLength``): an edit record with its
+    ///   box table runs past 2,000.
+    static func validated(_ prompt: String, maximum: Int = maximumLength) throws(ImageGenerationError) -> String {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw .invalidPrompt("The prompt is empty") }
-        guard trimmed.count <= maximumLength else {
-            throw .invalidPrompt("The prompt is \(trimmed.count) characters; at most \(maximumLength)")
+        guard trimmed.count <= maximum else {
+            throw .invalidPrompt("The prompt is \(trimmed.count) characters; at most \(maximum)")
         }
         return trimmed
     }

@@ -29,6 +29,9 @@ struct PromptTests {
         #expect(throws: ImageGenerationError.self) { try PromptText.validated(String(repeating: "a", count: 2001)) }
         #expect(try PromptText.validated("  a fox ") == "a fox")
         #expect(try ImageGenerator.validatedPrompt(" a fox") == "a fox")
+        let record = String(repeating: "x", count: 3000)
+        #expect(throws: ImageGenerationError.self) { try ImageGenerator.validatedPrompt(record) }
+        #expect(try ImageGenerator.validatedPrompt(record, for: .flux3Klein).count == 3000, "an edit record past 2,000 characters")
         #expect(ImageGenerator.promptSent(for: "a fox", allowText: false).hasSuffix(ImageGenerator.noTextSuffix))
     }
 }
@@ -103,7 +106,7 @@ struct CropAndBundleTests {
         #expect(throws: ImageGenerationError.notABundle(empty.path)) { try BundleIdentity.model(at: empty) }
     }
 
-    @Test("Only FLUX 4B edits; 9B is square-only; FLUX.3 draws 4B's shapes; 9B and FLUX.3 are non-commercial; 9B loads parts one at a time under 48 GB")
+    @Test("FLUX 4B and FLUX.3 edit; 9B is square-only; FLUX.3 draws 4B's shapes; 9B and FLUX.3 are non-commercial; 9B loads parts one at a time under 48 GB")
     func details() {
         #expect(GenerationModel.flux2Klein4B.supportsEditing)
         #expect(!GenerationModel.sanaSprint16B.supportsEditing)
@@ -115,7 +118,9 @@ struct CropAndBundleTests {
         #expect(GenerationModel.sanaSprint16B.aspects == [.square, .landscape, .vertical, .portrait])
         #expect(GenerationModel.flux2Klein9B.aspects == [.square])
         #expect(GenerationModel.flux3KleinSmall.aspects == GenerationModel.flux2Klein4B.aspects && GenerationModel.flux3Klein.aspects == GenerationModel.flux2Klein4B.aspects, "FLUX.3 draws every shape FLUX.2 4B does")
-        #expect(!GenerationModel.flux3KleinSmall.supportsEditing && GenerationModel.flux3Klein.editAspects.isEmpty)
+        #expect(GenerationModel.flux3KleinSmall.supportsEditing && GenerationModel.flux3Klein.supportsEditing)
+        #expect(GenerationModel.flux3Klein.editAspects == GenerationModel.flux2Klein4B.editAspects, "FLUX.3 edits 4B's seven shapes")
+        #expect(GenerationModel.flux3KleinSmall.maximumPromptLength == 6000 && GenerationModel.flux2Klein4B.maximumPromptLength == 2000)
         #expect(GenerationModel.allCases.filter(\.isNonCommercial) == [.flux2Klein9B, .flux3Klein, .flux3KleinSmall])
         let gb: UInt64 = 1_073_741_824
         #expect(GenerationModel.flux2Klein9B.loadsPartsOneAtATime(physicalMemory: 36 * gb))

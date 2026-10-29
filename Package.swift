@@ -15,7 +15,7 @@ let package = Package(
         // SANA Sprint pipelines — schedulers, tokenizers, VAE codecs. A fork of
         // 1.0.0 with one change: exports may be non-square (image_width /
         // image_height in the metadata), which Apple's pipeline assumed away.
-        .package(url: "https://github.com/arraypress/coreai-models.git", exact: "1.0.0-nonsquare.8"),
+        .package(url: "https://github.com/arraypress/coreai-models.git", exact: "1.0.0-nonsquare.9"),
         // Style slots, --var, strict recipe JSON and --set: the rules song shares.
         .package(url: "https://github.com/arraypress/swift-recipe-kit.git", from: "0.1.0"),
         // Core AI prints compiler warnings to stdout while it loads a model.
