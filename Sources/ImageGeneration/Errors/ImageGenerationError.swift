@@ -33,7 +33,7 @@ public enum ImageGenerationError: Error, LocalizedError, Sendable, Equatable {
     case invalidMask(String)
 
     /// More reference pictures than FLUX.2 takes (the edited picture counts).
-    case tooManyReferences(Int)
+    case tooManyReferences(Int, Int)
 
     /// Editing needs FLUX.2 Klein with its editing parts installed.
     case editingUnavailable(String)
@@ -70,8 +70,8 @@ public enum ImageGenerationError: Error, LocalizedError, Sendable, Equatable {
         case .invalidSteps(let steps, let model):
             "\(steps) is not a step count \(model.displayName) runs (\(model.stepRange.lowerBound)–\(model.stepRange.upperBound))"
         case .invalidMask(let why): why
-        case .tooManyReferences(let count):
-            "\(count) pictures in is more than FLUX.2 takes (\(ImageGenerator.maximumReferences), counting the edited one)"
+        case .tooManyReferences(let count, let most):
+            "\(count) pictures in is more than the model takes (\(most), counting the edited one)"
         case .editingUnavailable(let why): why
         case .generationFailed(let why): "the model failed: \(why)"
         case .cancelled: "cancelled"

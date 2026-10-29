@@ -75,28 +75,22 @@ Exported with the FLUX.3 recipe in [arraypress/coreai-models](https://github.com
 `1.0.0-nonsquare.8` (shapes and editors with its `flux3_shapes` exporter, `nonsquare.9`); hosted at [arraypress/imagine-flux3-klein](https://huggingface.co/arraypress/imagine-flux3-klein)
 (bfloat16 in `full/`, 4-bit at the top).
 
-**FLUX.3 edits** (0.17): `edit(_:_:…references:)` on either size, in FLUX.2 4B's seven editing shapes,
-each a `Transformer_img2img_full.aimodel` and `VAEEncoder.aimodel` in the shape's folder (1:1's in
-`shapes/1x1`). The instruction is passed as written — FLUX.3 was trained on the long instructions and
-box records its prompt upsampler writes (an 18.8 GB model this library does not run), so the caller
-writes them: measured against diffusers, "remove the notebook" left it in both, the written instruction
-removed it in both; a box record moved a mug where its box said. `strength` is always 1 (FLUX.3 redraws
-from noise with the pictures as references), and a FLUX.3 prompt may run to 6,000 characters — its
-pipeline refuses, never cuts, one past the 1,040-token window. One reference fills the traced grid
-exactly as diffusers passes it; several share it in quarter slots, each keeping its full size — a
-reference with two slots carries two exact phases of its full-resolution tokens at their true
-positions, one with a slot its block means at their centres. Measured: references squeezed into
-quarter grids at quarter extent drew a dressed person smaller than her photo; at full extent the
-framing matched diffusers', and the phases kept her face closest. The seven test edits matched
-diffusers' at 4:3 and 1:1, about 110–130 s each through `imagine` at bfloat16 (model load included).
-
-**FLUX.3 in every shape FLUX.2 4B draws** (0.16): 16:9, 9:16, 4:5, 4:3 and 3:2 beside 1:1, at both
-sizes, each in its own `shapes/<shape>/` folder (transformer, decoder, `metadata.json` naming the size;
-the text encoder shared two folders up) — 9.2 GB at bfloat16, 3.0 GB at 4 bits, fetched on first use.
-One file per shape, never one multi-function file: Core AI compiles every function of a file when it
-loads it (sixteen FLUX.2 functions compiled to 116 GB). Measured through `imagine`: a 4:3 kitchen at
-bfloat16 in 116 s with the first-load compile; a 9:16 poster at 4 bits in 54 s, "BLUE NOTE FRIDAY"
-spelled right; a 3:2 harbour at 4 bits in 44 s after a 3 GB first-use fetch.
+**FLUX.3 at any size, editing with up to ten pictures** (0.18): one export per FLUX.3 size draws and
+edits every shape — `generate(…size:)` and `edit(…size:)` take any width and height in multiples of 16
+up to 4 megapixels (`GenerationModel.isFlux3Size`); the others draw their export's size. The export
+(coreai-models `flux3_anysize`) traces every length variable: image, text and reference. So an edit
+takes up to ten pictures (`GenerationModel.maximumReferences`), each read whole as diffusers reads it —
+the edited picture at the output's grid, each further one fitted under 1 megapixel at its own shape —
+and `GenerationModel.flux3Size(fittingWidth:height:)` gives a picture's own shape at about 1
+megapixel (a shape within 1% of a named one takes its exact size: a phone's 4:3 is 1152 × 864).
+Measured: the variable transformer agrees with diffusers' own forward to cosine 0.999912 on the saved
+reference inputs, exactly as the fixed 1:1 export did; a 2048 × 2048 poster with its title spelled
+right in 420 s; a person dressed from a cardigan's and a beret's pictures, three in all, kept her
+face; at 4 bits a 3:4 picture in 43 s. The instruction is passed as written — FLUX.3 was trained on
+the long instructions and box records its prompt upsampler writes, and the caller writes them:
+against diffusers, "remove the notebook" left it in both, the written instruction removed it in both.
+`strength` is always 1; a FLUX.3 prompt may run to 6,000 characters, and its pipeline refuses, never
+cuts, one past the 1,040-token window. `ImageRecipe.Settings.size` records an exact size.
 
 Core AI prints six compiler warnings to standard output each time it loads the 4-bit export; the
 generator points stdout at /dev/null while a model loads and runs
@@ -113,7 +107,7 @@ job (the `imagine` CLI does it on first use).
 - **Eight shapes** (0.11): 1:1 (1024 × 1024), 16:9 (1344 × 768), 9:16 (768 × 1344), 4:5
   (896 × 1120), 4:3 (1152 × 864), 3:4, 3:2 (1248 × 832) and 2:3. `ImageAspect` names them;
   `GenerationModel.aspects` says which a model draws (FLUX 4B: 1:1, 16:9, 9:16, 4:5, 4:3, 3:2; SANA the
-  first four; FLUX.3 the same six as FLUX 4B; 9B 1:1) and `editAspects` which it edits (FLUX 4B and FLUX.3: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3).
+  first four; FLUX.3 all eight and any other size; 9B 1:1) and `editAspects` which it edits (FLUX 4B: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3; FLUX.3 all eight).
   `ImageAspect.nearest(width:height:among:)` picks the shape nearest a photo's. FLUX's shapes live in
   `shapes/<shape>/` folders (`shapeFolder`): `metadata.json`, the autoencoder, and a transformer per
   mode, each a single-function export with the LoRA slot; SANA's in `aspect-16x9/` and the like.
@@ -470,7 +464,7 @@ beside the SANA export) that 16:9 comes out 1344 × 768 and deterministic.
 ## Requirements
 
 macOS 27 / iOS 27 (Core AI), Swift 6.2. `coreai-models` — the arraypress fork of Apple's 1.0.0 (see
-above), pinned exactly to `1.0.0-nonsquare.9` (every shape, editing at any shape, FLUX.3 with references); swift-recipe-kit 0.1
+above), pinned exactly to `1.0.0-nonsquare.10` (every shape, editing at any shape, FLUX.3 at any size); swift-recipe-kit 0.1
 (Foundation only).
 
 ## Licence

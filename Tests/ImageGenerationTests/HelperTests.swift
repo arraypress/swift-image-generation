@@ -106,7 +106,7 @@ struct CropAndBundleTests {
         #expect(throws: ImageGenerationError.notABundle(empty.path)) { try BundleIdentity.model(at: empty) }
     }
 
-    @Test("FLUX 4B and FLUX.3 edit; 9B is square-only; FLUX.3 draws 4B's shapes; 9B and FLUX.3 are non-commercial; 9B loads parts one at a time under 48 GB")
+    @Test("FLUX 4B and FLUX.3 edit; 9B is square-only; FLUX.3 draws any shape and size; 9B and FLUX.3 are non-commercial; 9B loads parts one at a time under 48 GB")
     func details() {
         #expect(GenerationModel.flux2Klein4B.supportsEditing)
         #expect(!GenerationModel.sanaSprint16B.supportsEditing)
@@ -117,9 +117,19 @@ struct CropAndBundleTests {
         #expect(ImageAspect.allCases.count == 8)
         #expect(GenerationModel.sanaSprint16B.aspects == [.square, .landscape, .vertical, .portrait])
         #expect(GenerationModel.flux2Klein9B.aspects == [.square])
-        #expect(GenerationModel.flux3KleinSmall.aspects == GenerationModel.flux2Klein4B.aspects && GenerationModel.flux3Klein.aspects == GenerationModel.flux2Klein4B.aspects, "FLUX.3 draws every shape FLUX.2 4B does")
+        #expect(GenerationModel.flux3KleinSmall.aspects == ImageAspect.allCases && GenerationModel.flux3Klein.aspects == ImageAspect.allCases,
+                "FLUX.3 draws every named shape (any size, in fact)")
         #expect(GenerationModel.flux3KleinSmall.supportsEditing && GenerationModel.flux3Klein.supportsEditing)
-        #expect(GenerationModel.flux3Klein.editAspects == GenerationModel.flux2Klein4B.editAspects, "FLUX.3 edits 4B's seven shapes")
+        #expect(GenerationModel.flux3Klein.editAspects == ImageAspect.allCases, "FLUX.3 edits in every shape")
+        #expect(GenerationModel.flux3Klein.maximumReferences == 10 && GenerationModel.flux2Klein4B.maximumReferences == 4)
+        #expect(GenerationModel.isFlux3Size(width: 2048, height: 2048) && !GenerationModel.isFlux3Size(width: 2064, height: 2048))
+        #expect(!GenerationModel.isFlux3Size(width: 1000, height: 1024), "sides in multiples of 16")
+        let phone = GenerationModel.flux3Size(fittingWidth: 4032, height: 3024)
+        #expect(phone == (1152, 864), "a phone's 4:3 takes the named shape's exact size: \(phone)")
+        let odd = GenerationModel.flux3Size(fittingWidth: 2000, height: 1100)
+        #expect(odd == (1376, 752), "any other shape keeps its own, about 1 megapixel: \(odd)")
+        let huge = GenerationModel.flux3Size(fittingWidth: 4000, height: 3000, pixels: 9_000_000)
+        #expect(GenerationModel.isFlux3Size(width: huge.width, height: huge.height), "never past 4 megapixels: \(huge)")
         #expect(GenerationModel.flux3KleinSmall.maximumPromptLength == 6000 && GenerationModel.flux2Klein4B.maximumPromptLength == 2000)
         #expect(GenerationModel.allCases.filter(\.isNonCommercial) == [.flux2Klein9B, .flux3Klein, .flux3KleinSmall])
         let gb: UInt64 = 1_073_741_824

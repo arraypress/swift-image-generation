@@ -91,6 +91,9 @@ public struct ImageRecipe: Codable, Sendable, Equatable {
         public var model: String?
         /// An ``ImageAspect`` raw value: `1:1`, `16:9`, `9:16`, `4:5`.
         public var aspect: String?
+        /// The exact size, `WIDTHxHEIGHT` in pixels — FLUX.3, which draws any size;
+        /// it wins over `aspect`.
+        public var size: String?
         /// The first seed; picture n uses seed + n.
         public var seed: UInt32?
         /// Denoising steps.
@@ -110,9 +113,10 @@ public struct ImageRecipe: Codable, Sendable, Equatable {
 
         public init(model: String? = nil, aspect: String? = nil, seed: UInt32? = nil, steps: Int? = nil,
                     count: Int? = nil, upscale: Int? = nil, strength: Double? = nil, fixFaces: Bool? = nil,
-                    person: String? = nil) {
+                    person: String? = nil, size: String? = nil) {
             self.model = model
             self.aspect = aspect
+            self.size = size
             self.seed = seed
             self.steps = steps
             self.count = count
@@ -123,7 +127,7 @@ public struct ImageRecipe: Codable, Sendable, Equatable {
         }
 
         enum CodingKeys: String, CodingKey, CaseIterable {
-            case model, aspect, seed, steps, count, upscale, strength
+            case model, aspect, size, seed, steps, count, upscale, strength
             case fixFaces = "fix_faces"
             case person
         }

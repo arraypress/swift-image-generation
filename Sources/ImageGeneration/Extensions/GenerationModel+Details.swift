@@ -5,6 +5,8 @@
 //  Created by David Sherlock on 2026.
 //
 
+import Foundation
+
 public extension GenerationModel {
 
     /// The name people know it by.
@@ -36,6 +38,36 @@ public extension GenerationModel {
         case .flux3KleinSmall: "4bit"
         default: nil
         }
+    }
+
+    /// The most pictures the model takes in at once, an edited one included:
+    /// FLUX.3 ten (diffusers' bound; its editor's reference length is variable),
+    /// FLUX.2 Klein four (its traced reference route holds four quarter grids).
+    var maximumReferences: Int { isFlux3 ? 10 : 4 }
+
+    /// Whether FLUX.3 can draw `width` × `height`: sides in multiples of 16, at
+    /// most 4 megapixels (2048 × 2048) in all — diffusers' bound.
+    static func isFlux3Size(width: Int, height: Int) -> Bool {
+        width > 0 && height > 0 && width % 16 == 0 && height % 16 == 0 && width * height <= 2048 * 2048
+    }
+
+    /// A FLUX.3 size of `width` × `height`'s shape holding about `pixels` pixels,
+    /// sides in multiples of 16 — what an edit draws at unless told otherwise. A
+    /// shape within 1% of a named one takes its size (a phone's 4:3 photo draws
+    /// at 1152 × 864); any other keeps its own. Never past 4 megapixels.
+    static func flux3Size(fittingWidth width: Int, height: Int, pixels: Int = 1024 * 1024) -> (width: Int, height: Int) {
+        // A photo within 1% of a named shape takes that shape's exact size: a phone's 4:3 is
+        // 1152 × 864, as `--aspect 4:3` draws, not 1184 × 880 from rounding each side alone.
+        let ratio = Double(width) / Double(max(1, height))
+        if pixels == 1024 * 1024, let named = ImageAspect.allCases.first(where: { abs(log($0.ratio / ratio)) < 0.01 }) {
+            return named.size
+        }
+        let target = Double(min(pixels, 2048 * 2048))
+        let scale = (target / Double(max(1, width * height))).squareRoot()
+        let fitted = (width: max(16, Int((Double(width) * scale / 16).rounded()) * 16),
+                      height: max(16, Int((Double(height) * scale / 16).rounded()) * 16))
+        return isFlux3Size(width: fitted.width, height: fitted.height)
+            ? fitted : (max(16, fitted.width - 16), max(16, fitted.height - 16))
     }
 
     /// Whether the model is FLUX.3 [klein], at either size.
@@ -76,21 +108,23 @@ public extension GenerationModel {
         }
     }
 
-    /// The shapes this library's exports draw from text in: FLUX.2 Klein 4B and
-    /// FLUX.3 Klein (both sizes) six (no upright 3:4 or 2:3), SANA four, 9B the
-    /// square only.
+    /// The named shapes the model draws from text in: FLUX.3 every one (it draws
+    /// any size — ``isFlux3Size(width:height:)``), FLUX.2 Klein 4B six (no upright
+    /// 3:4 or 2:3), SANA four, 9B the square only.
     var aspects: [ImageAspect] {
         switch self {
-        case .flux2Klein4B, .flux3Klein, .flux3KleinSmall: [.square, .landscape, .vertical, .portrait, .classic, .photo]
+        case .flux2Klein4B: [.square, .landscape, .vertical, .portrait, .classic, .photo]
+        case .flux3Klein, .flux3KleinSmall: ImageAspect.allCases
         case .sanaSprint16B: [.square, .landscape, .vertical, .portrait]
         case .flux2Klein9B: [.square]
         }
     }
 
-    /// The shapes this library's exports edit in: FLUX.2 Klein 4B and FLUX.3
-    /// seven — the shapes photos come in (no 4:5) — and the others none.
+    /// The named shapes the model edits in: FLUX.3 every one (any size, in fact),
+    /// FLUX.2 Klein 4B seven — the shapes photos come in (no 4:5) — the others none.
     var editAspects: [ImageAspect] {
-        supportsEditing ? [.square, .landscape, .vertical, .classic, .classicTall, .photo, .photoTall] : []
+        if isFlux3 { return ImageAspect.allCases }
+        return supportsEditing ? [.square, .landscape, .vertical, .classic, .classicTall, .photo, .photoTall] : []
     }
 
     /// Whether to load the model's parts one at a time (`lowMemory`, the lite

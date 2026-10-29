@@ -31,7 +31,8 @@ public final class ImageGenerator: Sendable {
     public static let maximumCount = 16
 
     /// The most pictures FLUX.2 Klein takes in, the edited one included: the
-    /// traced reference route holds four quarter-size grids.
+    /// traced reference route holds four quarter-size grids. FLUX.3 takes more:
+    /// ``GenerationModel/maximumReferences``.
     public static let maximumReferences = 4
 
     /// The model the export holds.
@@ -115,18 +116,23 @@ public final class ImageGenerator: Sendable {
     ///   - steps: Denoising steps, within ``GenerationModel/stepRange``; the
     ///     export's own default (FLUX 4, SANA 2) when `nil`.
     ///   - references: Pictures to draw from — a face, a product, a style —
-    ///     up to ``maximumReferences``; FLUX.2 Klein 4B only. Each is cropped to
+    ///     up to ``GenerationModel/maximumReferences``; FLUX.2 Klein 4B and FLUX.3. FLUX.2's are cropped to
     ///     the centre at this export's shape.
     ///   - person: Someone a LoRA has learned, drawn through the export's
     ///     ``loraSlot`` — put their ``Person/trigger`` in the prompt. With
     ///     references only when the slot ``LoRASlotLayout/coversEditing``.
+    ///   - size: Width and height in pixels. FLUX.3 draws any shape: sides in
+    ///     multiples of 16, up to 4 megapixels in all; the others only their
+    ///     export's ``size``, the default.
     ///   - progress: Called after each denoising step with (step, steps).
-    /// - Returns: The pictures, in seed order, at the export's ``size``.
+    /// - Returns: The pictures, in seed order, at `size` (the export's ``size`` by default).
     /// - Throws: ``ImageGenerationError``; `.cancelled` when the task is;
     ///   `.personUnavailable` for a person on a plain export or with references.
     public func generate(_ prompt: String, seed: UInt32? = nil, count: Int = 1, allowText: Bool = false,
                          steps: Int? = nil, references: [CGImage] = [], person: Person? = nil,
+                         size: (width: Int, height: Int)? = nil,
                          progress: (@Sendable (Int, Int) -> Void)? = nil) async throws(ImageGenerationError) -> [GeneratedImage] {
+        let drawn = try resolvedSize(size)
         let text = try PromptText.validated(prompt, maximum: model.maximumPromptLength)
         guard (1...Self.maximumCount).contains(count) else { throw .invalidCount(count) }
         let stepCount = try resolvedSteps(steps)
@@ -136,7 +142,7 @@ public final class ImageGenerator: Sendable {
         var pictures: [GeneratedImage] = []
         for picture in SeedPlan.seeds(start: seed, count: count) {
             var config = configuration(prompt: sent, seed: picture, startingImage: nil, strength: 1,
-                                       steps: stepCount, references: extra)
+                                       steps: stepCount, references: extra, size: drawn)
             config.transformerInputs = slotInputs
             let (image, seconds) = try await run(config, progress: progress)
             pictures.append(GeneratedImage(image: image, seed: picture, model: model, prompt: text,
@@ -176,7 +182,9 @@ public final class ImageGenerator: Sendable {
     ///   when the editing parts are not installed.
     public func edit(_ image: CGImage, _ instruction: String, seed: UInt32? = nil, strength: Float = 1,
                      allowText: Bool = false, steps: Int? = nil, references: [CGImage] = [], person: Person? = nil,
+                     size: (width: Int, height: Int)? = nil,
                      progress: (@Sendable (Int, Int) -> Void)? = nil) async throws(ImageGenerationError) -> GeneratedImage {
+        let drawn = try resolvedSize(size)
         try requireEditing()
         let extra = try checkedReferences(references, besides: 1)
         let slotInputs = try personInputs(person, editing: true)
@@ -191,8 +199,8 @@ public final class ImageGenerator: Sendable {
         let sent = PromptText.composed(text, allowText: allowText)
         let picture = SeedPlan.seeds(start: seed, count: 1)[0]
         var config = configuration(prompt: sent, seed: picture,
-                                   startingImage: AspectMath.centred(image, width: size.width, height: size.height),
-                                   strength: strength, steps: stepCount, references: extra)
+                                   startingImage: AspectMath.centred(image, width: drawn.width, height: drawn.height),
+                                   strength: strength, steps: stepCount, references: extra, size: drawn)
         config.transformerInputs = slotInputs
         let (result, seconds) = try await run(config, progress: progress)
         return GeneratedImage(image: result, seed: picture, model: model, prompt: text,
@@ -236,9 +244,12 @@ public final class ImageGenerator: Sendable {
     private func checkedReferences(_ references: [CGImage], besides others: Int) throws(ImageGenerationError) -> [CGImage] {
         guard !references.isEmpty else { return [] }
         try requireEditing()
-        guard references.count + others <= Self.maximumReferences else {
-            throw .tooManyReferences(references.count + others)
+        guard references.count + others <= model.maximumReferences else {
+            throw .tooManyReferences(references.count + others, model.maximumReferences)
         }
+        // FLUX.3 reads each further reference at its own shape, as diffusers does; FLUX.2's
+        // traced route takes them at the picture's.
+        if model.isFlux3 { return references }
         return references.map { AspectMath.centred($0, width: size.width, height: size.height) }
     }
 
@@ -249,8 +260,21 @@ public final class ImageGenerator: Sendable {
         return steps
     }
 
+    /// The size to draw at: the caller's, checked, or the export's.
+    private func resolvedSize(_ asked: (width: Int, height: Int)?) throws(ImageGenerationError) -> (width: Int, height: Int) {
+        guard let asked, asked != size else { return size }
+        guard model.isFlux3 else {
+            throw .invalidPrompt("\(model.displayName) draws \(size.width)×\(size.height) from this export; load the shape's export instead")
+        }
+        guard GenerationModel.isFlux3Size(width: asked.width, height: asked.height) else {
+            throw .invalidPrompt("FLUX.3 draws sides in multiples of 16 up to 4 megapixels; not \(asked.width)×\(asked.height)")
+        }
+        return asked
+    }
+
     private func configuration(prompt: String, seed: UInt32, startingImage: CGImage?,
-                               strength: Float, steps: Int, references: [CGImage] = []) -> PipelineConfiguration {
+                               strength: Float, steps: Int, references: [CGImage] = [],
+                               size drawn: (width: Int, height: Int)? = nil) -> PipelineConfiguration {
         PipelineConfiguration(
             prompt: prompt, seed: seed,
             stepCount: steps, guidanceScale: defaults.guidance,
@@ -260,7 +284,8 @@ public final class ImageGenerator: Sendable {
             decoderScaleFactor: defaults.decoderScale,
             decoderShiftFactor: defaults.decoderShift,
             lazyModelLoading: defaults.lazy,
-            additionalReferences: references)
+            additionalReferences: references,
+            imageWidth: drawn?.width, imageHeight: drawn?.height)
     }
 
     private func run(_ config: PipelineConfiguration,
